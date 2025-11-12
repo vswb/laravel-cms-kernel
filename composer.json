@@ -11,9 +11,8 @@
         "google/apiclient": "^2.10",
         "asimlqt/php-google-spreadsheet-client": "3.0.2",
         "revolution/laravel-google-sheets": "*",
-        "basemkhirat/elasticsearch": "*@dev",
         "javoscript/laravel-macroable-models": "*",
-        "dev-extensions/thumbnail-generator": "dev-v7x"
+        "dev-extensions/thumbnail-generator": "dev-lte.6x"
     },
     "extra": {
         "laravel": {
