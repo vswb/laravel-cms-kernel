@@ -51,9 +51,9 @@ class KernelServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(191);
 
-        $this->app->register(CommandServiceProvider::class);
-        $this->app->register(EventServiceProvider::class);
-        $this->app->register(HookServiceProvider::class);
+        // $this->app->register(CommandServiceProvider::class);
+        // $this->app->register(EventServiceProvider::class);
+        // $this->app->register(HookServiceProvider::class);
 
         if (method_exists($this->app, 'scoped')) { // Laravel 8.x compatibility: Add scoped() method polyfill (Laravel 9.x+ feature)
             // This adds scoped() method to Application for compatibility with packages
@@ -69,7 +69,8 @@ class KernelServiceProvider extends ServiceProvider
             ->loadMigrations()
             ->loadHelpers()
             // ->loadAndPublishViews()
-            ->loadRoutes(['web', 'api']);
+            // ->loadRoutes(['web', 'api'])
+        ;
 
         // $this->app['events']->listen(RouteMatched::class, function () {
         //     if (ApiHelper::enabled()) {

@@ -11,7 +11,7 @@ Route::group([
     ],
     'prefix' => 'api/v1',
     // NOTE: Changed namespace from Platform\Api to Platform\Kernel to match package structure
-    'namespace' => 'Platform\Kernel\Http\Controllers',
+    'namespace' => 'Platform\Kernel\Http\Controllers\API\v1',
     'as' => 'kernel.api.v1.'
 ], function () {
     #region for laravel cms platform only: force update url cho toàn bộ hệ thống mã nguồn cms sau khi triển khai
