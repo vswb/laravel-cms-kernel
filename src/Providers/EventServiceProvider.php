@@ -6,7 +6,6 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 
 use Dev\Kernel\Events\MemberBirthdayEvent;
 use Dev\Kernel\Listeners\MemberBirthdayListener;
-use Dev\AdvancedRole\Models\Member;
 
 class EventServiceProvider extends ServiceProvider
 {

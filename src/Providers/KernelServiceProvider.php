@@ -2,23 +2,13 @@
 
 namespace Dev\Kernel\Providers;
 
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Foundation\AliasLoader;
-use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull;
-use Illuminate\Session\Middleware\StartSession;
-use Illuminate\Contracts\Debug\ExceptionHandler;
 
 use Dev\Base\Supports\Helper;
-use Dev\Base\Facades\BaseHelper;
 use Dev\Base\Facades\EmailHandler;
-use Dev\Base\Supports\ServiceProvider;
+use Illuminate\Support\ServiceProvider;
 use Dev\Kernel\Traits\LoadAndPublishDataTrait;
-use Dev\Api\Facades\ApiHelper;
-use Dev\Api\Http\Middleware\ForceJsonResponseMiddleware;
-use Dev\Kernel\Exceptions\HandleResponseException;
-
 class KernelServiceProvider extends ServiceProvider
 {
     use LoadAndPublishDataTrait;

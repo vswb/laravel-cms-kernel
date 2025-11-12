@@ -7,17 +7,6 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
-
-use Javoscript\MacroableModels\Facades\MacroableModels;
-
-use Dev\AdvancedRole\Models\Department;
-use Dev\Kernel\Models\Transaction;
-
 class MacroServiceProvider extends ServiceProvider
 {
     /**

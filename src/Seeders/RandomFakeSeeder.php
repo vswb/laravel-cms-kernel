@@ -4,16 +4,7 @@ namespace Dev\Kernel\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Hash;
-use Datetime;
-use Faker\Factory;
-
-use Dev\Language\Repositories\Interfaces\LanguageInterface;
-use Dev\Setting\Repositories\Interfaces\SettingInterface;
-
 /**
  * Usage: php artisan db:seed --class=\\Dev\\Kernel\\Seeders\\RandomFakeSeeder
  * 

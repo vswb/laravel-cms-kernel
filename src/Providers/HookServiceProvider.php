@@ -2,16 +2,7 @@
 
 namespace Dev\Kernel\Providers;
 
-use MetaBox;
-use Illuminate\Support\Arr;
-use Dev\Page\Models\Page;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Auth;
-use Dev\ACL\Models\User;
-use Dev\ACL\Repositories\Interfaces\ActivationInterface;
-use Dev\Multisite\Repositories\Interfaces\MultisiteInterface;
-use Dev\PagesPedding\Models\PagesPedding;
-
 class HookServiceProvider extends ServiceProvider
 {
     public function boot()
