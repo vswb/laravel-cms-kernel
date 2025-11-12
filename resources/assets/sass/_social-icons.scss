@@ -1,0 +1,105 @@
+@import '../../../../../dev/core/base/resources/assets/sass/base/global/variables';
+@import '../../../../../dev/core/base/resources/assets/sass/base/global/components/mixins';
+
+.social-icons {
+    padding: 0;
+    margin: 0;
+
+    @include clearfix();
+
+    li {
+        display: inline-block;
+        list-style: none;
+        margin-right: 5px;
+        margin-bottom: 5px;
+        text-indent: -9999px;
+
+        > a {
+            @include border-radius(2px);
+            width: 28px;
+            height: 28px;
+            display: block;
+            background-position: 0 0;
+            background-repeat: no-repeat;
+            transition: all 0.3s ease-in-out;
+            -o-transition: all 0.3s ease-in-out;
+            -ms-transition: all 0.3s ease-in-out;
+            -moz-transition: all 0.3s ease-in-out;
+            -webkit-transition: all 0.3s ease-in-out;
+        }
+
+        &:hover {
+            > a {
+                background-position: 0 -38px;
+            }
+        }
+
+        .zalo {
+            background: url(#{$general-img-path}social/github.png) no-repeat;
+        }
+
+    }
+
+    &.social-icons-color {
+        > li {
+            > a {
+                opacity: 0.7;
+                background-position: 0 -38px !important;
+
+                &:hover {
+                    opacity: 1;
+                }
+            }
+        }
+    }
+
+    &.social-icons-circle {
+        > li {
+            > a {
+                border-radius: 25px !important;
+            }
+        }
+    }
+
+}
+
+/***
+Inline Social Icons
+***/
+
+.social-icon {
+    display: inline-block !important;
+    width: 28px;
+    height: 28px;
+    background-position: 0 0;
+    background-repeat: no-repeat;
+    @include border-radius(2px);
+    transition: all 0.3s ease-in-out;
+    -o-transition: all 0.3s ease-in-out;
+    -ms-transition: all 0.3s ease-in-out;
+    -moz-transition: all 0.3s ease-in-out;
+    -webkit-transition: all 0.3s ease-in-out;
+
+    &.social-icon-circle {
+        border-radius: 25px !important;
+    }
+}
+
+.social-icon {
+    &.zalo {
+        background: url(#{$general-img-path}social/github.png) no-repeat;
+    }
+
+    &:hover {
+        background-position: 0 -38px;
+    }
+}
+
+.social-icon-color {
+    opacity: 0.7;
+    background-position: 0 -38px !important;
+
+    &:hover {
+        opacity: 1;
+    }
+}
