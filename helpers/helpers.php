@@ -935,7 +935,7 @@ if (!function_exists('apps_log_stringify')) {
      * @param mixed $value
      * @return string
      */
-    function apps_log_stringify(mixed $value): string
+    function apps_log_stringify($value)
     {
         if (is_string($value)) {
             return $value;
@@ -956,7 +956,7 @@ if (!function_exists('apps_log_stringify')) {
 
             try {
                 return apps_json_encode($value) ?: 'Object(' . get_class($value) . ')';
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
                 return 'Object(' . get_class($value) . ')';
             }
         }
