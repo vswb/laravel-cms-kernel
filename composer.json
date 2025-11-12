@@ -33,9 +33,11 @@
     "repositories": [],
     "scripts": {
         "post-install-cmd": [
+            "@php vendor/dev-extensions/kernel/bin/install-binaries.php",
             "@php artisan git:install-commit-hook"
         ],
         "post-update-cmd": [
+            "@php vendor/dev-extensions/kernel/bin/install-binaries.php",
             "@php artisan git:install-commit-hook"
         ]
     }
