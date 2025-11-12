@@ -162,10 +162,12 @@ trait LoadAndPublishDataTrait
     protected function loadAndPublishTranslations(): self
     {
         $this->loadTranslationsFrom($this->getTranslationsPath(), $this->getDashedNamespace());
-        $this->publishes(
-            [$this->getTranslationsPath() => lang_path('vendor/' . $this->getDashedNamespace())],
-            'cms-lang'
-        );
+        if (function_exists('lang_path')) {
+            $this->publishes(
+                [$this->getTranslationsPath() => lang_path('vendor/' . $this->getDashedNamespace())],
+                'cms-lang'
+            );
+        }
 
         return $this;
     }
