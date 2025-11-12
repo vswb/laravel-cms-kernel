@@ -42,7 +42,7 @@ class KernelServiceProvider extends ServiceProvider
 
         // $this->app->singleton(ExceptionHandler::class, Handler::class); // không binding được vì thứ tự chạy trước, nên bị chạy sau đè lên Platform\Base\Providers\BaseServiceProvider
 
-        $this->registerMiddlewares();
+        // $this->registerMiddlewares();
 
         Helper::autoload(__DIR__ . '/../../helpers');
     }
