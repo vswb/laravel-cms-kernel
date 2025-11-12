@@ -5,7 +5,7 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Dev\\Kernel\\": "src/"
+            "Platform\\Kernel\\": "src/"
         }
     },
     "require": {
@@ -14,12 +14,12 @@
         "asimlqt/php-google-spreadsheet-client": "3.0.2",
         "revolution/laravel-google-sheets": "*",
         "javoscript/laravel-macroable-models": "*",
-        "dev-extensions/thumbnail-generator": "dev-lte.6x"
+        "dev-extensions/thumbnail-generator": "dev-lte.6x-is_platform"
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Dev\\Kernel\\Providers\\KernelServiceProvider"
+                "Platform\\Kernel\\Providers\\KernelServiceProvider"
             ],
             "aliases": {}
         },

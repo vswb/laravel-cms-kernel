@@ -1,13 +1,13 @@
 <?php
 
-namespace Dev\Base\Exceptions;
+namespace Platform\Base\Exceptions;
 
 use App\Exceptions\Handler as ExceptionHandler;
-use Dev\Base\Contracts\Exceptions\IgnoringReport;
-use Dev\Base\Facades\BaseHelper;
-use Dev\Base\Facades\EmailHandler;
-use Dev\Base\Http\Responses\BaseHttpResponse;
-use Dev\Media\Facades\AppMedia;
+use Platform\Base\Contracts\Exceptions\IgnoringReport;
+use Platform\Base\Facades\BaseHelper;
+use Platform\Base\Facades\EmailHandler;
+use Platform\Base\Http\Responses\BaseHttpResponse;
+use Platform\Media\Facades\AppMedia;
 use Carbon\Carbon;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Contracts\Container\Container;

@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Seeders;
+namespace Platform\Kernel\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -11,11 +11,11 @@ use Illuminate\Support\Facades\Hash;
 use Datetime;
 use Faker\Factory;
 
-use Dev\Language\Repositories\Interfaces\LanguageInterface;
-use Dev\Setting\Repositories\Interfaces\SettingInterface;
+use Platform\Language\Repositories\Interfaces\LanguageInterface;
+use Platform\Setting\Repositories\Interfaces\SettingInterface;
 
 /**
- * Usage: php artisan db:seed --class=\\Dev\\Kernel\\Seeders\\RandomFakeSeeder
+ * Usage: php artisan db:seed --class=\\Platform\\Kernel\\Seeders\\RandomFakeSeeder
  * 
  */
 class RandomFakeSeeder extends Seeder

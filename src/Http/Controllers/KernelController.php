@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Http\Controllers;
+namespace Platform\Kernel\Http\Controllers;
 
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Str;
@@ -13,8 +13,8 @@ use chillerlan\QRCode\Common\EccLevel;
 use chillerlan\QRCode\Data\QRMatrix;
 use chillerlan\QRCode\Output\{QROutputInterface, QRGdImage};
 
-use Dev\AppQrcode\QRImageWithText;
-use Dev\Telegram\Notifications\TelegramRawNotification;
+use Platform\AppQrcode\QRImageWithText;
+use Platform\Telegram\Notifications\TelegramRawNotification;
 
 use NotificationChannels\Telegram\TelegramMessage;
 use NotificationChannels\Telegram\TelegramChannel;

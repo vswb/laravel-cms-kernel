@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Providers;
+namespace Platform\Kernel\Providers;
 
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Schema;
@@ -10,14 +10,14 @@ use Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 
-use Dev\Base\Supports\Helper;
-use Dev\Base\Facades\BaseHelper;
-use Dev\Base\Facades\EmailHandler;
-use Dev\Base\Supports\ServiceProvider;
-use Dev\Kernel\Traits\LoadAndPublishDataTrait;
-use Dev\Api\Facades\ApiHelper;
-use Dev\Api\Http\Middleware\ForceJsonResponseMiddleware;
-use Dev\Kernel\Exceptions\HandleResponseException;
+use Platform\Base\Supports\Helper;
+use Platform\Base\Facades\BaseHelper;
+use Platform\Base\Facades\EmailHandler;
+use Platform\Base\Supports\ServiceProvider;
+use Platform\Kernel\Traits\LoadAndPublishDataTrait;
+use Platform\Api\Facades\ApiHelper;
+use Platform\Api\Http\Middleware\ForceJsonResponseMiddleware;
+use Platform\Kernel\Exceptions\HandleResponseException;
 
 class KernelServiceProvider extends ServiceProvider
 {
@@ -50,7 +50,7 @@ class KernelServiceProvider extends ServiceProvider
             $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\View\Middleware\ShareErrorsFromSession::class);
         });
 
-        // $this->app->singleton(ExceptionHandler::class, Handler::class); // không binding được vì thứ tự chạy trước, nên bị chạy sau đè lên Dev\Base\Providers\BaseServiceProvider
+        // $this->app->singleton(ExceptionHandler::class, Handler::class); // không binding được vì thứ tự chạy trước, nên bị chạy sau đè lên Platform\Base\Providers\BaseServiceProvider
 
         $this->registerMiddlewares();
 

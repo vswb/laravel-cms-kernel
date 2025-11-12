@@ -1,14 +1,14 @@
 <?php
 
-namespace Dev\Kernel\Models;
+namespace Platform\Kernel\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-use Dev\Base\Casts\SafeContent;
-use Dev\Base\Enums\BaseStatusEnum;
-use Dev\Base\Models\BaseModel;
-use Dev\Base\Models\Concerns\HasSlug;
-use Dev\Kernel\Models\District;
+use Platform\Base\Casts\SafeContent;
+use Platform\Base\Enums\BaseStatusEnum;
+use Platform\Base\Models\BaseModel;
+use Platform\Base\Models\Concerns\HasSlug;
+use Platform\Kernel\Models\District;
 
 class Ward extends BaseModel
 {

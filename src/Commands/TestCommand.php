@@ -1,9 +1,9 @@
 <?php
 
-namespace Dev\Kernel\Commands;
+namespace Platform\Kernel\Commands;
 
-use Dev\Base\Enums\BaseStatusEnum;
-use Dev\ACL\Models\User;
+use Platform\Base\Enums\BaseStatusEnum;
+use Platform\ACL\Models\User;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,14 +17,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
-use Dev\Base\Http\Controllers\BaseController;
-use Dev\Base\Http\Responses\BaseHttpResponse;
-use Dev\AdvancedRole\Repositories\Interfaces\MemberInterface;
-use Dev\Setting\Supports\SettingStore;
-use Dev\Base\Facades\Assets;
-use Dev\Media\Facades\AppMedia;
-use Dev\Lead\Repositories\Interfaces\ConnectionInterface;
-use Dev\ThumbnailGenerator\Facades\ThumbnailMediaFacade as ThumbnailMedia;
+use Platform\Base\Http\Controllers\BaseController;
+use Platform\Base\Http\Responses\BaseHttpResponse;
+use Platform\AdvancedRole\Repositories\Interfaces\MemberInterface;
+use Platform\Setting\Supports\SettingStore;
+use Platform\Base\Facades\Assets;
+use Platform\Media\Facades\AppMedia;
+use Platform\Lead\Repositories\Interfaces\ConnectionInterface;
+use Platform\ThumbnailGenerator\Facades\ThumbnailMediaFacade as ThumbnailMedia;
 
 use Rinvex\Subscriptions\Models\PlanFeature;
 

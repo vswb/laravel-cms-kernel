@@ -1,7 +1,7 @@
 <?php 
 // app/Console/Commands/SetupGitHookCommand.php
 
-namespace Dev\Kernel\Commands;
+namespace Platform\Kernel\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;

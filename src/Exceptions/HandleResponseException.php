@@ -1,8 +1,8 @@
 <?php
 
-namespace Dev\Kernel\Exceptions;
+namespace Platform\Kernel\Exceptions;
 
-use Dev\Base\Http\Responses\BaseHttpResponse;
+use Platform\Base\Http\Responses\BaseHttpResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Log;
 

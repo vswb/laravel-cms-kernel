@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Providers;
+namespace Platform\Kernel\Providers;
 
 use Illuminate\Support\Str;
 use Illuminate\Database\Query\Builder;
@@ -15,8 +15,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 use Javoscript\MacroableModels\Facades\MacroableModels;
 
-use Dev\AdvancedRole\Models\Department;
-use Dev\Kernel\Models\Transaction;
+use Platform\AdvancedRole\Models\Department;
+use Platform\Kernel\Models\Transaction;
 
 class MacroServiceProvider extends ServiceProvider
 {

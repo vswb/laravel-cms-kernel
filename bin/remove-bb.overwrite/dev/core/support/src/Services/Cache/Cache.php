@@ -1,8 +1,8 @@
 <?php
 
-namespace Dev\Support\Services\Cache;
+namespace Platform\Support\Services\Cache;
 
-use Dev\Base\Facades\BaseHelper;
+use Platform\Base\Facades\BaseHelper;
 use Closure;
 use DateInterval;
 use DateTimeInterface;

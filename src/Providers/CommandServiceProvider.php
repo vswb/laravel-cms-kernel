@@ -1,13 +1,13 @@
 <?php
 
-namespace Dev\Kernel\Providers;
+namespace Platform\Kernel\Providers;
 
 use Illuminate\Support\ServiceProvider;
 
-use Dev\Kernel\Commands\MemberBirthdayNotificationCommand;
-use Dev\Kernel\Commands\TestCommand;
-use Dev\Kernel\Commands\LocationImporterCommand;
-use Dev\Kernel\Commands\SetupGitHookCommand;
+use Platform\Kernel\Commands\MemberBirthdayNotificationCommand;
+use Platform\Kernel\Commands\TestCommand;
+use Platform\Kernel\Commands\LocationImporterCommand;
+use Platform\Kernel\Commands\SetupGitHookCommand;
 
 class CommandServiceProvider extends ServiceProvider
 {

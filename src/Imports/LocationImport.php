@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Imports;
+namespace Platform\Kernel\Imports;
 
 use Exception;
 use Throwable;
@@ -37,16 +37,16 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\ImportFailed;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
 
-use Dev\Location\Models\Country;
-use Dev\Location\Models\City;
-use Dev\Location\Models\State;
-use Dev\Kernel\Models\District;
-use Dev\Kernel\Models\Ward;
-use Dev\Location\Events\ImportedCityEvent;
-use Dev\Location\Events\ImportedCountryEvent;
-use Dev\Location\Events\ImportedStateEvent;
+use Platform\Location\Models\Country;
+use Platform\Location\Models\City;
+use Platform\Location\Models\State;
+use Platform\Kernel\Models\District;
+use Platform\Kernel\Models\Ward;
+use Platform\Location\Events\ImportedCityEvent;
+use Platform\Location\Events\ImportedCountryEvent;
+use Platform\Location\Events\ImportedStateEvent;
 use Maatwebsite\Excel\Concerns\WithSkipDuplicates;
-use Dev\Kernel\Jobs\LocationJob;
+use Platform\Kernel\Jobs\LocationJob;
 
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;

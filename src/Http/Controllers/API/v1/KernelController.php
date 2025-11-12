@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Http\Controllers\API\v1;
+namespace Platform\Kernel\Http\Controllers\API\v1;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\JsonResponse;
@@ -16,10 +16,10 @@ use chillerlan\QRCode\Common\EccLevel;
 use chillerlan\QRCode\Data\QRMatrix;
 use chillerlan\QRCode\Output\{QROutputInterface, QRGdImage};
 
-use Dev\Base\Http\Responses\BaseHttpResponse;
-use Dev\AdvancedRole\Models\Member;
-use Dev\AppQrcode\QRImageWithText;
-use Dev\Telegram\Notifications\TelegramRawNotification;
+use Platform\Base\Http\Responses\BaseHttpResponse;
+use Platform\AdvancedRole\Models\Member;
+use Platform\AppQrcode\QRImageWithText;
+use Platform\Telegram\Notifications\TelegramRawNotification;
 
 use NotificationChannels\Telegram\TelegramMessage;
 use NotificationChannels\Telegram\TelegramChannel;

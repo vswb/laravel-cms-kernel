@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Events;
+namespace Platform\Kernel\Events;
 
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;

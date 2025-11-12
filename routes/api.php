@@ -10,7 +10,7 @@ Route::group([
         'api'
     ],
     'prefix' => 'api/v1',
-    'namespace' => 'Dev\Api\Http\Controllers',
+    'namespace' => 'Platform\Api\Http\Controllers',
     'as' => 'kernel.api.v1.'
 ], function () {
     #region for laravel cms platform only: force update url cho toàn bộ hệ thống mã nguồn cms sau khi triển khai
@@ -54,7 +54,7 @@ Route::group([
 Route::group([
     'middleware' => ['api'],
     'prefix'    => 'api/v1',
-    'namespace' => 'Dev\Kernel\Http\Controllers\API\v1',
+    'namespace' => 'Platform\Kernel\Http\Controllers\API\v1',
     'as' => 'kernel.api.v1.'
 ], function () {
     Route::group(

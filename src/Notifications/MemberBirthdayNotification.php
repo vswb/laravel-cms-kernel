@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Notifications;
+namespace Platform\Kernel\Notifications;
 
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -10,7 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Queue\InteractsWithQueue;
 
-use Dev\Base\Facades\EmailHandler;
+use Platform\Base\Facades\EmailHandler;
 
 class MemberBirthdayNotification extends Notification implements ShouldQueue
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Traits;
+namespace Platform\Kernel\Traits;
 
 trait FieldHelper
 {

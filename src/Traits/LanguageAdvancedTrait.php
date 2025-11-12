@@ -1,10 +1,10 @@
 <?php
 
-namespace Dev\Kernel\Traits;
+namespace Platform\Kernel\Traits;
 
-use Dev\Language\Facades\Language;
+use Platform\Language\Facades\Language;
 
-use Dev\LanguageAdvanced\Supports\LanguageAdvancedManager;
+use Platform\LanguageAdvanced\Supports\LanguageAdvancedManager;
 
 /**
  * @deprecated 5.9

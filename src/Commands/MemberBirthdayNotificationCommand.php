@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Commands;
+namespace Platform\Kernel\Commands;
 
 use Illuminate\Support\Str;
 use Illuminate\Console\Command;
@@ -8,13 +8,13 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 
-use Dev\Base\Commands\Traits\ValidateCommandInput;
-use Dev\Base\Exceptions\LicenseIsAlreadyActivatedException;
-use Dev\Base\Supports\Core;
-use Dev\Setting\Facades\Setting;
+use Platform\Base\Commands\Traits\ValidateCommandInput;
+use Platform\Base\Exceptions\LicenseIsAlreadyActivatedException;
+use Platform\Base\Supports\Core;
+use Platform\Setting\Facades\Setting;
 
-use Dev\AdvancedRole\Models\Member;
-use Dev\Kernel\Events\MemberBirthdayEvent;
+use Platform\AdvancedRole\Models\Member;
+use Platform\Kernel\Events\MemberBirthdayEvent;
 
 use Exception;
 use Throwable;

@@ -1,9 +1,9 @@
 <?php
 
-namespace Dev\Kernel\Traits;
+namespace Platform\Kernel\Traits;
 
-use Dev\Base\Supports\Helper;
-use Dev\Base\Supports\ServiceProvider;
+use Platform\Base\Supports\Helper;
+use Platform\Base\Supports\ServiceProvider;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use ReflectionClass;

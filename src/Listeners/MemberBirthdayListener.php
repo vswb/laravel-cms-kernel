@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Listeners;
+namespace Platform\Kernel\Listeners;
 
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\HtmlString;
@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-use Dev\Base\Facades\EmailHandler;
-use Dev\Kernel\Events\MemberBirthdayEvent;
-use Dev\Kernel\Notifications\MemberBirthdayNotification;
+use Platform\Base\Facades\EmailHandler;
+use Platform\Kernel\Events\MemberBirthdayEvent;
+use Platform\Kernel\Notifications\MemberBirthdayNotification;
 
 class MemberBirthdayListener
 {

@@ -1,11 +1,11 @@
 <?php
 
-namespace Dev\Support\Repositories\Caches;
+namespace Platform\Support\Repositories\Caches;
 
-use Dev\Base\Models\BaseModel;
-use Dev\Base\Models\BaseQueryBuilder;
-use Dev\Support\Repositories\Interfaces\RepositoryInterface;
-use Dev\Support\Services\Cache\Cache;
+use Platform\Base\Models\BaseModel;
+use Platform\Base\Models\BaseQueryBuilder;
+use Platform\Support\Repositories\Interfaces\RepositoryInterface;
+use Platform\Support\Services\Cache\Cache;
 use Illuminate\Database\Eloquent\Model;
 use Exception;
 use InvalidArgumentException;

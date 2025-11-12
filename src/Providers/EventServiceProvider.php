@@ -1,12 +1,12 @@
 <?php
 
-namespace Dev\Kernel\Providers;
+namespace Platform\Kernel\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
-use Dev\Kernel\Events\MemberBirthdayEvent;
-use Dev\Kernel\Listeners\MemberBirthdayListener;
-use Dev\AdvancedRole\Models\Member;
+use Platform\Kernel\Events\MemberBirthdayEvent;
+use Platform\Kernel\Listeners\MemberBirthdayListener;
+use Platform\AdvancedRole\Models\Member;
 
 class EventServiceProvider extends ServiceProvider
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace Dev\Kernel\Commands;
+namespace Platform\Kernel\Commands;
 
 use Exception;
 use Throwable;
@@ -16,14 +16,14 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Schema;
 
-use Dev\Kernel\Imports\LocationImport;
-use Dev\Location\Models\Country;
-use Dev\Location\Models\City;
-use Dev\Location\Models\State;
-use Dev\Kernel\Models\District;
-use Dev\Kernel\Models\Ward;
-use Dev\Location\Events\ImportedCityEvent;
-use Dev\Location\Events\ImportedCountryEvent;
+use Platform\Kernel\Imports\LocationImport;
+use Platform\Location\Models\Country;
+use Platform\Location\Models\City;
+use Platform\Location\Models\State;
+use Platform\Kernel\Models\District;
+use Platform\Kernel\Models\Ward;
+use Platform\Location\Events\ImportedCityEvent;
+use Platform\Location\Events\ImportedCountryEvent;
 
 use Maatwebsite\Excel\Facades\Excel;
 

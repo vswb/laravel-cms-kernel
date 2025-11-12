@@ -1,11 +1,11 @@
 <?php
 
-namespace Dev\Kernel\Seeders;
+namespace Platform\Kernel\Seeders;
 
 use Illuminate\Database\Seeder;
 
-use Dev\Language\Repositories\Interfaces\LanguageInterface;
-use Dev\Setting\Repositories\Interfaces\SettingInterface;
+use Platform\Language\Repositories\Interfaces\LanguageInterface;
+use Platform\Setting\Repositories\Interfaces\SettingInterface;
 
 class SettingSeeder extends Seeder
 {
