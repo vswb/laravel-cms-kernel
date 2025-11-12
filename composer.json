@@ -1,6 +1,8 @@
 {
     "name": "dev-extensions/kernel",
     "description": "dev-extensions kernel",
+    "type": "library",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Dev\\Kernel\\": "src/"
@@ -13,7 +15,7 @@
         "revolution/laravel-google-sheets": "*",
         "basemkhirat/elasticsearch": "*@dev",
         "javoscript/laravel-macroable-models": "*",
-        "dev-extensions/thumbnail-generator": "dev-v7x"
+        "dev-extensions/thumbnail-generator": "v7.x-dev"
     },
     "extra": {
         "laravel": {
