@@ -12,8 +12,7 @@
         "maatwebsite/excel": "^3.1",
         "google/apiclient": "^2.10",
         "asimlqt/php-google-spreadsheet-client": "3.0.2",
-        "revolution/laravel-google-sheets": "*",
-        "dev-extensions/thumbnail-generator": "dev-lte.6x-is_platform"
+        "revolution/laravel-google-sheets": "*"
     },
     "extra": {
         "laravel": {
