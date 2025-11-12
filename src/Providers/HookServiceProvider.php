@@ -8,6 +8,16 @@ class HookServiceProvider extends ServiceProvider
 {
     public function boot()
     {
+        // Define constant if not exists (for compatibility)
+        if (!defined('BASE_FILTER_FOOTER_LAYOUT_TEMPLATE')) {
+            define('BASE_FILTER_FOOTER_LAYOUT_TEMPLATE', 'base_filter_footer_layout_template');
+        }
+
+        // Check if add_filter function exists (from CMS core)
+        if (!function_exists('add_filter')) {
+            return;
+        }
+
         add_filter(BASE_FILTER_FOOTER_LAYOUT_TEMPLATE, function ($payload) {
             return $payload . "<script>
             /* hide license activate form, license activate warning */
