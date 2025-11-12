@@ -1,4 +1,9 @@
-# Laravel CMS Kernel
+# Laravel CMS Kernel 
+
+## Branches
+- 📦 lte.6x-is_dev: sử dụng cho các phiên bản CMS <=6.x và namespace hệ thống dưới dạng `Dev\\`
+- 📦 lte.6x-is_platform: sử dụng cho các phiên bản CMS <=6.x và namespace hệ thống dưới dạng `Platform\\`
+- 📦 v7x: sử dụng cho các phiên bản CMS >=7.x và namespace hệ thống lúc này luôn luôn dưới dạng `Dev\\`
 
 A comprehensive kernel extension for Laravel CMS that provides core system functionality, package initialization, and kernel customizations.
 
@@ -105,7 +110,7 @@ php artisan git:install-commit-hook
 Seed default settings for the application:
 
 ```shell
-php artisan db:seed --class=\\Dev\\Kernel\\Seeders\\SettingSeeder
+php artisan db:seed --class=\\Platform\\Kernel\\Seeders\\SettingSeeder
 ```
 
 ### Helper Functions
@@ -150,7 +155,7 @@ $this->setNamespace('kernel')
 Add benchmarking capabilities to your classes:
 
 ```php
-use Dev\Kernel\Traits\Benchmarkable;
+use Platform\Kernel\Traits\Benchmarkable;
 
 class YourClass
 {
@@ -172,7 +177,7 @@ class YourClass
 Manage district data with relationships to cities:
 
 ```php
-use Dev\Kernel\Models\District;
+use Platform\Kernel\Models\District;
 
 $district = District::where('city_id', 1)->get();
 ```
@@ -181,7 +186,7 @@ $district = District::where('city_id', 1)->get();
 Manage ward data with relationships to districts:
 
 ```php
-use Dev\Kernel\Models\Ward;
+use Platform\Kernel\Models\Ward;
 
 $ward = Ward::where('district_id', 1)->get();
 ```
@@ -191,9 +196,9 @@ $ward = Ward::where('district_id', 1)->get();
 ### Member Birthday Event
 The package includes a birthday reminder system:
 
-- **Event**: `Dev\Kernel\Events\MemberBirthdayEvent`
-- **Listener**: `Dev\Kernel\Listeners\MemberBirthdayListener`
-- **Notification**: `Dev\Kernel\Notifications\MemberBirthdayNotification`
+- **Event**: `Platform\Kernel\Events\MemberBirthdayEvent`
+- **Listener**: `Platform\Kernel\Listeners\MemberBirthdayListener`
+- **Notification**: `Platform\Kernel\Notifications\MemberBirthdayNotification`
 
 ## API Routes
 
