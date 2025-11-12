@@ -1706,7 +1706,7 @@ if (! function_exists('apps_cache_get_key')) {
      * @param string $cacheKey : Key cache trong group, nếu không có thì put queue vào trong danh sách key của group
      * @param string|null : Tên group cache, chứa các key chung nhóm. nếu đặt null thì là một cacheKey riêng không nằm trong group nào cả
      */
-    function apps_cache_get_key(string $cacheKey = 'default', string|null $group = null)
+    function apps_cache_get_key(string $cacheKey = 'default',  $group = null)
     {
         try {
             // Prefix key theo APP_NAME để phân tách giữa các app/DB
@@ -1772,7 +1772,7 @@ if (! function_exists('apps_cache_store')) {
         string $key = 'default',
         $data = '',
         $time = 60 * 60,
-        string|null $group = null
+         $group = null
     ) {
         try {
             $cacheKey = apps_cache_get_key($key, $group);
@@ -1824,8 +1824,8 @@ if (! function_exists('apps_cache_flush')) {
      * @return void
      */
     function apps_cache_flush(
-        string|null $cacheKey = 'default',
-        string|null $group = null
+         $cacheKey = 'default',
+         $group = null
     ) {
         try {
             if (blank($group)) {
@@ -2118,7 +2118,7 @@ if (!function_exists('apps_get_image_url_webp')) {
      * @param string $originalUrl URL ảnh gốc (có thể kèm query/fragment)
      * @return string|null URL .webp nếu có, ngược lại URL gốc; null khi tham số rỗng
      */
-    function apps_get_image_url_webp($originalUrl): string|null
+    function apps_get_image_url_webp($originalUrl): 
     {
         static $memo = [];
 
