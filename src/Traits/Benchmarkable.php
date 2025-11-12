@@ -6,16 +6,9 @@ use Illuminate\Support\Facades\Log;
 
 trait Benchmarkable
 {
-    private $benchmarks = [];
+    private array $benchmarks = [];
 
-    /**
-     * @param string $label
-     * @param callable $callback
-     * @param string|null $channel
-     * @param string $level
-     * @return mixed
-     */
-    public function benchmark(string $label, callable $callback, ?string $channel = null, string $level = 'info')
+    public function benchmark(string $label, callable $callback, ?string $channel = null, string $level = 'info'): mixed
     {
         $start = microtime(true);
         $result = $callback();

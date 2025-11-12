@@ -12,11 +12,6 @@ class MemberBirthdayEvent
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
-     * @var mixed
-     */
-    public $receiver;
-
-    /**
      * Create a new event instance and Handle the event.
      * 
      * Cách khởi tạo một event: Để bắn ra một sự kiện, Larvel cung cấp 2 phương thức là sử dụng helper Event hoặc static method dispatch
@@ -29,7 +24,8 @@ class MemberBirthdayEvent
      * 
      * @return void
      */
-    public function __construct($receiver)
+
+    public function __construct(public $receiver)
     {
         $this->receiver = $receiver;
     }

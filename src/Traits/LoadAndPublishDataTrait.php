@@ -109,7 +109,7 @@ trait LoadAndPublishDataTrait
      * @param array|string $fileNames
      * @return $this
      */
-    protected function loadRoutes($fileNames = ['web'])
+    protected function loadRoutes(array|string $fileNames = ['web']): static
     {
         if (! is_array($fileNames)) {
             $fileNames = [$fileNames];
@@ -138,7 +138,7 @@ trait LoadAndPublishDataTrait
     /**
      * @return $this
      */
-    protected function loadAndPublishViews()
+    protected function loadAndPublishViews(): static
     {
         $this->loadViewsFrom($this->getViewsPath(), $this->getDashedNamespace());
         if ($this->app->runningInConsole()) {
@@ -216,14 +216,14 @@ trait LoadAndPublishDataTrait
         return $this->getPath('public');
     }
 
-    protected function loadHelpers()
+    protected function loadHelpers(): static
     {
         Helper::autoload($this->getPath('/helpers'));
 
         return $this;
     }
 
-    protected function loadAnonymousComponents()
+    protected function loadAnonymousComponents(): static
     {
         $this->app['blade.compiler']->anonymousComponentPath(
             $this->getViewsPath() . '/components',

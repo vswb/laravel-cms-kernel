@@ -17,16 +17,12 @@ class MemberBirthdayNotification extends Notification implements ShouldQueue
     use Queueable;
 
     /**
-     * @var mixed
-     */
-    public $event;
-
-    /**
      * Create a new notification instance.
      *
      * @return void
      */
-    public function __construct($event)
+
+    public function __construct(public $event)
     {
         $this->event = $event;
     }

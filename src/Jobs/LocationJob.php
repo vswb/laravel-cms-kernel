@@ -38,22 +38,12 @@ class LocationJob implements ShouldQueue
     protected $logger = 'location-import'; // logger filename
 
     /**
-     * @var mixed
-     */
-    public $row;
-
-    /**
-     * @var mixed
-     */
-    public $country;
-
-    /**
      * Create a new job instance.
      */
-    public function __construct($row, $country)
-    {
-        $this->row = $row;
-        $this->country = $country;
+    public function __construct(
+        public $row,
+        public $country
+    ) {
         $this->logger = apps_log_channel($this->logger);
     }
 

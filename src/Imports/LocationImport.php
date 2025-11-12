@@ -73,19 +73,14 @@ class LocationImport extends DefaultValueBinder implements
     public $importedFile;
 
     /**
-     * @var mixed
-     */
-    private $country;
-
-    /**
      * Create a new command instance.
      *
      * @return void
      */
-    public function __construct($country)
+    public function __construct(private $country)
     {
-        $this->country = $country;
         $this->logger = apps_log_channel($this->logger);
+        $this->country = $country;
     }
 
     public function setLog($logger)

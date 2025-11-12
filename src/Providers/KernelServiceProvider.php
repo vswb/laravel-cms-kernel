@@ -67,7 +67,7 @@ class KernelServiceProvider extends ServiceProvider
         $this->app->register(MacroServiceProvider::class, true);
 
         $this
-            ->setNamespace('kernel')
+            ->setNamespace('kernel/kernel')
             ->loadMigrations()
             ->loadAndPublishConfigurations(['general', 'email'])
             ->loadAndPublishTranslations()

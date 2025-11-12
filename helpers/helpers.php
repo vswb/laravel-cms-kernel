@@ -1450,7 +1450,7 @@ if (!function_exists('apps_apollo_crm_login')) {
  * @return  array , sử dụng casts trong model để xử lý json data, tránh sử dụng json_decode/json_encode
  */
 if (!function_exists('apps_json_to_database')) {
-    function apps_json_to_database($original, $value, $key = null, $override = true)
+    function apps_json_to_database(array|string|null $original, $value, $key = null, $override = true): array
     {
         if (is_string($original)) { // '{}'
             try {
@@ -2153,5 +2153,215 @@ if (!function_exists('apps_get_image_url_webp')) {
         $webpUrl = preg_replace('/\.' . preg_quote($ext, '/') . '(\?.*)?$/i', '.webp$1', $originalUrl);
 
         return $memo[$originalUrl] = ($webpUrl ?: $originalUrl);
+    }
+}
+
+
+if (!function_exists('apps_leadgen_prepare_data')) {
+    function apps_leadgen_prepare_data($lead, $mappings = null, $logger = 'daily')
+    {
+        Log::channel($logger)->info("==========> " . __FUNCTION__ . " helper is running");
+
+        #region pre processing data
+        $lead = apps_array_remove_null($lead); // remove elements having NULL value from multidimentional array
+
+        array_walk_recursive($lead, function (&$arrValue, $arrKey) {
+            if (!blank($arrValue)) :
+                $arrValue = trim($arrValue); // $lead = array_map('trim', $lead); // hàm trim làm giá trị null trở thành ""
+            endif;
+        });
+        $origin = collect($lead)->toArray();
+
+        ## convert all array keys to standard format w/ underscore instead of special characters
+        $lead = array_combine(
+            array_map(function ($key) {
+                return strtolower(Str::slug($key, '_'));
+            }, array_keys($lead)),
+            array_values($lead)
+        );
+        #endregion
+
+        #region hub_step fields mapping
+        if (!blank($mappings)) { // hub_step fields mapping
+            try {
+                // Log::channel($logger)->info('hub_step fields mapping to database', $mappings);
+                foreach ($mappings as $mapping_key => $_mappings) {
+                    // Log::channel($logger)->info('mapping_key', (array) $mapping_key);
+                    if (count($_mappings)) {
+                        foreach ($_mappings as $__mapping) {
+                            /** 
+                             * chú ý: tên cột của spreadsheet không chấp nhận dấu _ và bất kỳ ký tự ngoài các chữ alphebet
+                             * eg: "1009385287145182|số_điện_thoại" or "số_điện_thoại or sđt_của_cha_mẹ:"
+                             */
+                            $__mapping_key = strtolower(Str::slug($__mapping['key'], '_')); # <<<<< chú ý gạch chân ghi làm việc với gg spreadsheet.
+                            $__mapping_key = isset(explode("|", $__mapping_key)[1]) ? explode("|", $__mapping_key)[1] : $__mapping_key;
+                            // Log::channel($logger)->info('__mapping_key slug', (array) $__mapping_key);
+
+                            if (
+                                (isset($lead['providerformid']) && $lead['providerformid']) ||
+                                (isset($lead['provider_form_id']) && $lead['provider_form_id'])
+                            ) {
+                                #code
+                            }
+
+                            /**
+                             * chú ý: chưa xử lý nếu mapping multiple keys
+                             * eg: mapping {ten, ho ten, ten day du} > fullname
+                             */
+                            if (!blank(Arr::get($lead, $__mapping_key)) && $svalue = Arr::get($lead, $__mapping_key)) {
+                                $lead[strtolower($mapping_key)] = is_array($svalue) ? json_encode($svalue) : "{$svalue}";
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable $th) {
+                Log::channel($logger)->error($th->getMessage());
+                Log::channel($logger)->error($th->getTraceAsString());
+                // DO NOT THROW
+            }
+        }
+        #endregion
+
+        $lead['dealer'] = apps_array_get_first_non_empty($lead, [
+            'dealer',      // ưu tiên giữ key gốc cho toyota_crm
+            'showroom'
+        ], null);
+
+        $lead['dealer_id'] = apps_array_get_first_non_empty($lead, [
+            'dealer_id',
+            'showroom_id'
+        ], null);
+
+        $emailRaw = apps_array_get_first_non_empty($lead, [
+            'email',
+            'your_email',
+            'email_cua_ban_la_gi',
+            'dia_chi_email_cua_ban_la_gi',
+            'user_email',
+            'what_is_your_email_address',
+        ], null);
+        $lead['email'] = filter_var($emailRaw, FILTER_VALIDATE_EMAIL) ? $emailRaw : null;
+
+        $phoneRaw = apps_array_get_first_non_empty($lead, [
+            'phone',
+            'phone_number',
+            'so_dien_thoai',
+            'mobile',
+            'so_dien_thoai_cua_ban_la_gi',
+            'hotline',
+            'so_dien_thoai_dang_ki_lai_thu_cua_ban_la_gi',
+            'what_is_your_phone_number',
+            'your_phone',
+            'user_phone',
+            'nhap_so_dien_thoai',
+        ], null);
+        $lead['phone'] = $lead['mobile'] = $lead['phone_number'] = $lead['phonenumber'] = $lead['so_dien_thoai'] = apps_phone_convert($phoneRaw);
+
+
+        $lead['name'] = $lead['fullname'] = apps_array_get_first_non_empty($lead, [
+            'name',
+            'fullname',
+            'tendayducuabanlagi',
+            'hotencuabanlagi',
+            'clientname',
+            'whatisyourfullname',
+            'tendaydu',
+            'ten',
+            'yourname',
+            'hovaten',
+            'hoten',
+            'full_name',
+            'first_name',
+            'firstname',
+            'ho_va_ten',
+            'ho_ten',
+            'client_name',
+            'customer_name',
+            'ten_day_du',
+            'phone',   // sử dụng phone nếu name null, cần đặt cuối điều kiện
+            'email'    // sử dụng email nếu name null, cần đặt cuối điều kiện
+        ], null);
+        $lead['model'] = $lead['dong_xe'] = $data['mau_xe_ma_ban_quan_tam'] = $lead['dong_xe_quan_tam'] = $lead['dong_xe_ban_quan_tam'] = apps_array_get_first_non_empty($lead, [
+            'model',
+            'dong_xe',
+            'dong_xe_quan_tam',
+            'dong_xe_ban_quan_tam',
+            'dong_xe_muon_lai_thu',
+            'mau_xe_ma_ban_quan_tam',
+            'chon_dong_xe',
+        ], null);
+        $lead['nhu_cau'] = $lead['nhu_cau_cua_ban'] = $lead['notes'] = $lead['description'] = apps_array_get_first_non_empty($lead, [
+            'nhu_cau',
+            'nhu_cau_cua_ban',
+            'yeu_cau',
+        ], null);
+
+        $lead['city'] = $lead['province'] = $lead['thanh_pho'] = $lead['tinh_thanh_pho'] = $lead['tinh_thanh'] = Str::limit(
+            apps_array_get_first_non_empty($lead, [
+                'city',
+                'province',
+                'thanh_pho',
+                'tinh_thanh',
+                'tinh_thanh_pho',
+                'tinhthanh_pho',
+                'ban_song_tai_tinh_thanh_pho_nao',
+                'ban_dang_song_o_tinh_thanh_pho_nao',
+                'ban_song_tai_tinhthanh_pho_nao',
+                'ban_song_o_tinhthanh_pho_nao',
+                'chon_dia_diem',
+                'chon_dai_ly',
+                'dai_ly',
+            ], null),
+            100
+        ); // limit 100 characters, khi người dùng nhập quá nhiều;
+        // if (blank($lead['city']) and !blank($lead['dealer'])) {
+        //     preg_match('#\((.*?)\)#', $lead['dealer'], $provinceArr); // extract string from (Bắc Ninh) ĐL Bắc Ninh_TBN
+        //     if (!blank($provinceArr)) {
+        //         $lead['city'] = $lead['province'] = $lead['thanh_pho'] = $lead['tinh_thanh_pho'] = $lead['tinh_thanh'] = $provinceArr[1]; // Bắc Ninh
+        //     }
+        // }
+
+        $lead['district'] = $lead['quan_huyen'] = apps_array_get_first_non_empty($lead, [
+            'district',
+            'quan_huyen',
+        ], null);
+
+        $lead['ward'] = $lead['phuong_xa'] = apps_array_get_first_non_empty($lead, [
+            'ward',
+            'phuong_xa',
+        ], null);
+
+        $lead['dia_chi'] = $lead['address1'] = $lead['address2'] = apps_array_get_first_non_empty($lead, [
+            'address',
+            'address1',
+            'address2',
+            'dia_chi',
+            'so_nha_va_ten_duong',
+        ], null);
+
+        $lead['notes'] = $lead['description'] = apps_array_get_first_non_empty($lead, [
+            'content',
+            'description',
+            'comment',
+            'notes',
+            'noidung',
+            'model',
+        ], null);
+
+        $lead['identity_card'] = apps_array_get_first_non_empty($lead, [
+            'idcard',
+            'identity_card',
+            'cmnd',
+            'cccd',
+        ], null);
+
+        $lead['tax_code'] = $lead['mst'] = apps_array_get_first_non_empty($lead, [
+            'tax_code',
+            'mst',
+            'tax',
+        ], null);
+
+        Log::channel($logger)->info("==========> " . __FUNCTION__, array_change_key_case(array_merge($origin, $lead), CASE_LOWER));
+        return array_change_key_case(array_merge($origin, $lead), CASE_LOWER);
     }
 }
