@@ -19,7 +19,6 @@ A comprehensive kernel extension for Laravel CMS that provides core system funct
 - 🚀 Bootstrap core system components
 - 📦 Initialize core packages automatically
 - 🔧 Kernel and middleware customizations
-- 🌍 Location management (Districts, Wards with import functionality)
 - 📊 Google Spreadsheet integration
 - 🎂 Member birthday notification system
 - 🔍 Advanced query macros
@@ -83,13 +82,6 @@ This will publish configuration files to `config/kernel/` directory.
 ## Usage
 
 ### Commands
-
-#### Import Location Data
-Import districts and wards data from Excel file:
-
-```shell
-php artisan location:location-import --truncate=1
-```
 
 #### Member Birthday Notifications
 Send birthday reminders to members:

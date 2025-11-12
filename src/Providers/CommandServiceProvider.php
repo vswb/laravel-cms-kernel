@@ -6,7 +6,6 @@ use Illuminate\Support\ServiceProvider;
 
 use Platform\Kernel\Commands\MemberBirthdayNotificationCommand;
 use Platform\Kernel\Commands\TestCommand;
-use Platform\Kernel\Commands\LocationImporterCommand;
 use Platform\Kernel\Commands\SetupGitHookCommand;
 
 class CommandServiceProvider extends ServiceProvider
@@ -15,7 +14,6 @@ class CommandServiceProvider extends ServiceProvider
     {
         if (app()->runningInConsole()) {
             $this->commands([
-                LocationImporterCommand::class,
                 TestCommand::class,
                 MemberBirthdayNotificationCommand::class,
                 SetupGitHookCommand::class
