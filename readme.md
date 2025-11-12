@@ -1,6 +1,7 @@
 # Laravel CMS Kernel 
 
 ## Branches
+
 - 📦 lte.6x-is_dev: sử dụng cho các phiên bản CMS <=6.x và namespace hệ thống dưới dạng `Dev\\`
 - 📦 lte.6x-is_platform: sử dụng cho các phiên bản CMS <=6.x và namespace hệ thống dưới dạng `Platform\\`
 - 📦 v7x: sử dụng cho các phiên bản CMS >=7.x và namespace hệ thống lúc này luôn luôn dưới dạng `Dev\\`
