@@ -871,10 +871,10 @@ if (!function_exists('apps_log_write')) {
     function apps_log_write(
         string $level,
         string $message,
-        ?string $channel = null,
+        $channel = null,
         string $mode = 'normal',
-        ?\Throwable $exception = null
-    ): void {
+        $exception = null
+    ) {
         static $blockStartTimes = [];
 
         $channelName = $channel ? apps_log_channel($channel) : config('logging.default');
@@ -1795,7 +1795,7 @@ if (! function_exists('apps_cache_get')) {
      * @param ?string  $group
      * @return mixed
      */
-    function apps_cache_get(string $key = 'default', $default = null, ?string $group = null)
+    function apps_cache_get(string $key = 'default', $default = null, $group = null)
     {
         try {
             $cacheKey = apps_cache_get_key($key, $group);
@@ -1934,12 +1934,19 @@ if (!function_exists('apps_is_valid_timestamp')) {
  * @param bool withEol = true sẽ thêm ký tự xuống hàng
  */
 if (!function_exists('apps_json_encode')) {
+    /**
+     * @param array|object|null $data
+     * @param bool $pretty
+     * @param bool $withEol
+     * @param bool $throwOnError
+     * @return string
+     */
     function apps_json_encode(
-        array|object|null $data,
+        $data,
         bool $pretty = false,
         bool $withEol = false,
         bool $throwOnError = true // mặc định là true, trừ khi có lý do rõ ràng để không dùng
-    ): string {
+    ) {
         $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
 
         if ($pretty) {
@@ -2029,14 +2036,14 @@ if (!function_exists('apps_extract_additional_data')) {
      *
      * @param  array   $data    Dữ liệu nguồn (tham chiếu & cập nhật trực tiếp).
      * @param  string  $schema  Tên bảng (mặc định: leads).
-     * @param  mixed   $additionalDataIgnore Các field không cần lưu vào additional_data
+     * @param  array|null   $additionalDataIgnore Các field không cần lưu vào additional_data
      * @return array   Mảng dữ liệu bổ sung (đã chuẩn hóa).
      */
     function apps_extract_additional_data(
         array $data,
         string $schema = "leads",
-        ?array $additionalDataIgnore = null // các field không cần lưu vào additional_data
-    ): array {
+        $additionalDataIgnore = null // các field không cần lưu vào additional_data
+    ) {
         $additionalDataIgnore ??= [
             'hub_uuid',
             'pull_id',
@@ -2118,7 +2125,7 @@ if (!function_exists('apps_get_image_url_webp')) {
      * @param string $originalUrl URL ảnh gốc (có thể kèm query/fragment)
      * @return string|null URL .webp nếu có, ngược lại URL gốc; null khi tham số rỗng
      */
-    function apps_get_image_url_webp($originalUrl): 
+    function apps_get_image_url_webp($originalUrl)
     {
         static $memo = [];
 
