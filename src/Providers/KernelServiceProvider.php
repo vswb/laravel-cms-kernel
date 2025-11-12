@@ -56,7 +56,9 @@ class KernelServiceProvider extends ServiceProvider
         $this->app->register(EventServiceProvider::class);
         $this->app->register(HookServiceProvider::class);
 
-        if (method_exists($this->app, 'scoped')) {
+        if (method_exists($this->app, 'scoped')) { // Laravel 8.x compatibility: Add scoped() method polyfill (Laravel 9.x+ feature)
+            // This adds scoped() method to Application for compatibility with packages
+            // that require Laravel 9.x+ (like javoscript/laravel-macroable-models)
             $this->app->register(MacroServiceProvider::class, true);
         }
 
