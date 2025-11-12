@@ -1,14 +1,15 @@
 <?php
 
-namespace Dev\Kernel\Providers;
+namespace Platform\Kernel\Providers;
 
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull;
 
-use Dev\Base\Supports\Helper;
-use Dev\Base\Facades\EmailHandler;
+use Platform\Base\Supports\Helper;
+use Platform\Base\Facades\EmailHandler;
 use Illuminate\Support\ServiceProvider;
-use Dev\Kernel\Traits\LoadAndPublishDataTrait;
+use Platform\Kernel\Traits\LoadAndPublishDataTrait;
+
 class KernelServiceProvider extends ServiceProvider
 {
     use LoadAndPublishDataTrait;
@@ -40,7 +41,7 @@ class KernelServiceProvider extends ServiceProvider
             $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\View\Middleware\ShareErrorsFromSession::class);
         });
 
-        // $this->app->singleton(ExceptionHandler::class, Handler::class); // không binding được vì thứ tự chạy trước, nên bị chạy sau đè lên Dev\Base\Providers\BaseServiceProvider
+        // $this->app->singleton(ExceptionHandler::class, Handler::class); // không binding được vì thứ tự chạy trước, nên bị chạy sau đè lên Platform\Base\Providers\BaseServiceProvider
 
         $this->registerMiddlewares();
 
@@ -54,7 +55,12 @@ class KernelServiceProvider extends ServiceProvider
         $this->app->register(CommandServiceProvider::class);
         $this->app->register(EventServiceProvider::class);
         $this->app->register(HookServiceProvider::class);
-        $this->app->register(MacroServiceProvider::class, true);
+
+        if (method_exists($this->app, 'scoped')) { // Laravel 8.x compatibility: Add scoped() method polyfill (Laravel 9.x+ feature)
+            // This adds scoped() method to Application for compatibility with packages
+            // that require Laravel 9.x+ (like javoscript/laravel-macroable-models)
+            $this->app->register(MacroServiceProvider::class, true);
+        }
 
         $this
             ->setNamespace('kernel')
