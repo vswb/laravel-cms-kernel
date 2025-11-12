@@ -19,14 +19,6 @@ class KernelServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // $this->app['config']->set([
-        //     'scribe.routes.0.match.prefixes' => ['api/*'],
-        //     'scribe.routes.0.apply.headers' => [
-        //         'Authorization' => 'Bearer {token}',
-        //         'Api-Version' => 'v1',
-        //     ],
-        // ]);
-
         // if (class_exists('ApiHelper')) {
         //     AliasLoader::getInstance()->alias('ApiHelper', ApiHelper::class);
         // }
@@ -40,8 +32,6 @@ class KernelServiceProvider extends ServiceProvider
             $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\Session\Middleware\StartSession::class);
             $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\View\Middleware\ShareErrorsFromSession::class);
         });
-
-        // $this->app->singleton(ExceptionHandler::class, Handler::class); // không binding được vì thứ tự chạy trước, nên bị chạy sau đè lên Platform\Base\Providers\BaseServiceProvider
 
         $this->registerMiddlewares();
 
@@ -69,7 +59,7 @@ class KernelServiceProvider extends ServiceProvider
             ->loadAndPublishTranslations()
             ->loadMigrations()
             ->loadHelpers()
-            // ->loadAndPublishViews()
+            ->loadAndPublishViews()
             ->loadRoutes(['web', 'api']);
 
         // $this->app['events']->listen(RouteMatched::class, function () {
