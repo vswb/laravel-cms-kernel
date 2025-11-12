@@ -55,7 +55,10 @@ class KernelServiceProvider extends ServiceProvider
         $this->app->register(CommandServiceProvider::class);
         $this->app->register(EventServiceProvider::class);
         $this->app->register(HookServiceProvider::class);
-        $this->app->register(MacroServiceProvider::class, true);
+
+        if (method_exists($this->app, 'scoped')) {
+            $this->app->register(MacroServiceProvider::class, true);
+        }
 
         $this
             ->setNamespace('kernel')
