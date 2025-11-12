@@ -7,7 +7,6 @@
         }
     },
     "require": {
-        "php": ">=8.2",
         "maatwebsite/excel": "^3.1",
         "google/apiclient": "^2.10",
         "asimlqt/php-google-spreadsheet-client": "3.0.2",
