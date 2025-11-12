@@ -13,7 +13,7 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Platform\Base\Supports\Helper;
 use Platform\Base\Facades\BaseHelper;
 use Platform\Base\Facades\EmailHandler;
-use Platform\Base\Supports\ServiceProvider;
+use Illuminate\Support\ServiceProvider;
 use Platform\Kernel\Traits\LoadAndPublishDataTrait;
 use Platform\Api\Facades\ApiHelper;
 use Platform\Api\Http\Middleware\ForceJsonResponseMiddleware;

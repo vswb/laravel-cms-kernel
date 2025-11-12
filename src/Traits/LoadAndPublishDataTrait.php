@@ -3,7 +3,7 @@
 namespace Platform\Kernel\Traits;
 
 use Platform\Base\Supports\Helper;
-use Platform\Base\Supports\ServiceProvider;
+use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use ReflectionClass;
