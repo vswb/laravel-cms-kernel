@@ -2,15 +2,7 @@
 
 namespace Platform\Kernel\Providers;
 
-use MetaBox;
-use Illuminate\Support\Arr;
-use Platform\Page\Models\Page;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Auth;
-use Platform\ACL\Models\User;
-use Platform\ACL\Repositories\Interfaces\ActivationInterface;
-use Platform\Multisite\Repositories\Interfaces\MultisiteInterface;
-use Platform\PagesPedding\Models\PagesPedding;
 
 class HookServiceProvider extends ServiceProvider
 {
