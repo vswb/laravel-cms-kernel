@@ -33,7 +33,7 @@ if (!is_dir($projectBinDir)) {
 }
 
 $linkedCount = 0;
-$skippedCount = 0;
+$removedCount = 0;
 $excludeFiles = ['install-binaries.php']; // Don't link this installer itself
 
 // Get all items in package bin/
@@ -53,19 +53,8 @@ foreach ($items as $item) {
     $targetPath = $projectBinDir . '/' . $relativePath;
     $sourcePath = $item->getPathname();
 
-    // Skip if target exists and is not a symlink (don't override user files)
-    if (file_exists($targetPath) && !is_link($targetPath)) {
-        $skippedCount++;
-        continue;
-    }
-
-    // Remove existing symlink if exists
-    if (is_link($targetPath)) {
-        unlink($targetPath);
-    }
-
     if ($item->isDir()) {
-        // Create directory
+        // Create directory if not exists
         if (!is_dir($targetPath)) {
             mkdir($targetPath, 0755, true);
         }
@@ -76,7 +65,23 @@ foreach ($items as $item) {
             mkdir($targetDir, 0755, true);
         }
 
-        // Create symlink (use relative path for portability)
+        // ✅ FORCE MODE: Remove any existing file/symlink to ensure symlink creation
+        if (file_exists($targetPath) || is_link($targetPath)) {
+            // Check if it's a symlink first (symlinks return true for is_link even if broken)
+            if (is_link($targetPath)) {
+                unlink($targetPath);
+                $removedCount++;
+                echo "  🔄 Removed old symlink: {$relativePath}\n";
+            } 
+            // If it's a regular file (not symlink), remove it too
+            elseif (is_file($targetPath)) {
+                unlink($targetPath);
+                $removedCount++;
+                echo "  🔄 Removed old file: {$relativePath}\n";
+            }
+        }
+
+        // Create symlink
         if (symlink($sourcePath, $targetPath)) {
             // Make executable for scripts
             $extension = pathinfo($item->getFilename(), PATHINFO_EXTENSION);
@@ -94,11 +99,11 @@ foreach ($items as $item) {
 echo "\n";
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 echo "Summary:\n";
-echo "  Linked: {$linkedCount} files\n";
-if ($skippedCount > 0) {
-    echo "  Skipped: {$skippedCount} files (already exists)\n";
+echo "  ✓ Linked: {$linkedCount} files\n";
+if ($removedCount > 0) {
+    echo "  🔄 Removed: {$removedCount} old files/symlinks\n";
 }
-echo "  Target: {$projectBinDir}\n";
+echo "  📁 Target: {$projectBinDir}\n";
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 echo "\n";
 

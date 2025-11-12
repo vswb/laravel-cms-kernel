@@ -57,7 +57,12 @@ You can run them directly from your project root:
 ./bin/scan-malware.sh
 ```
 
-📚 **[View complete binaries documentation](BINARIES.md)** - Detailed guide for all available scripts
+📚 **Documentation:**
+- **[BINARIES.md](BINARIES.md)** - Complete list of all available scripts
+- **[BINARIES_SETUP.md](BINARIES_SETUP.md)** - Installation & troubleshooting guide
+- **[FORCE_MODE_EXPLAINED.md](FORCE_MODE_EXPLAINED.md)** - How automatic cleanup works
+
+⚠️ **Important:** The installer uses **FORCE MODE** - existing files/symlinks will be automatically removed and replaced. [Learn more](FORCE_MODE_EXPLAINED.md)
 
 ## Configuration
 

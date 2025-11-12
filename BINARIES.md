@@ -10,6 +10,19 @@ All scripts are **automatically symlinked** during:
 
 The scripts will be available at: `ROOT/bin/`
 
+### ⚠️ Important Notice
+
+**The installer uses FORCE MODE:**
+- Any existing files/symlinks with the same name in `ROOT/bin/` will be **automatically removed**
+- This ensures symlinks are always created successfully
+- **Backup your custom scripts** before installation if they have the same names
+
+**What happens:**
+```bash
+# If you have: ROOT/bin/docker-setup.sh (your custom file)
+# After install: ROOT/bin/docker-setup.sh -> vendor/.../docker-setup.sh (symlink to package)
+```
+
 ---
 
 ## 📜 Available Scripts

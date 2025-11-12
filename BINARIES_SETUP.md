@@ -129,11 +129,18 @@ bin/
     └── debug-tool.php           → Linked
 ```
 
-### ✅ Safe Mode (Không Override)
+### ✅ Force Mode (Tự động làm sạch)
 
-- ❌ Không override files đã tồn tại (non-symlink)
-- ✅ Chỉ tạo symlink mới hoặc update symlink cũ
-- 📊 Báo cáo số lượng skipped files
+- ✅ **Tự động xóa** file/symlink cũ trước khi tạo mới
+- ✅ Đảm bảo symlink **luôn thành công** 100%
+- 🔄 Báo cáo số lượng files đã xóa
+- ⚠️ **Lưu ý**: Files cùng tên sẽ bị ghi đè bởi symlink
+
+**Cơ chế hoạt động:**
+1. Kiểm tra file đích đã tồn tại chưa
+2. Nếu tồn tại → Xóa (dù là file hay symlink)
+3. Tạo symlink mới
+4. Set executable permission
 
 ### ✅ Auto Executable
 
@@ -164,9 +171,9 @@ Khi chạy installer:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Summary:
-  Linked: 32 files
-  Skipped: 0 files
-  Target: /path/to/project/bin
+  ✓ Linked: 32 files
+  🔄 Removed: 5 old files/symlinks
+  📁 Target: /path/to/project/bin
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -232,18 +239,17 @@ chmod +x bin/*.php
 2. Enable Developer Mode (Windows 10/11)
 3. Hoặc dùng WSL
 
-### Files bị skipped
+### Files bị override
 
-**Nguyên nhân:** File đã tồn tại và không phải symlink
+**Hành vi:** Script sẽ **tự động xóa** file/symlink cũ và tạo mới
 
-**Giải pháp:**
+**Output:**
 ```bash
-# Xóa file cũ
-rm bin/conflicting-file.sh
-
-# Chạy lại installer
-php vendor/dev-extensions/kernel/bin/install-binaries.php
+🔄 Removed old file: docker-setup.sh
+✓ docker-setup.sh
 ```
+
+**⚠️ Cảnh báo:** Nếu bạn có custom scripts trùng tên trong `bin/`, chúng sẽ bị ghi đè. Backup trước khi chạy!
 
 ---
 
