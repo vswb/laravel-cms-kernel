@@ -80,8 +80,8 @@ class KernelServiceProvider extends ServiceProvider
         /* extend email template after CMS fully booted */
         $this->app->booted(function () {
             #region extend core to modify email template management in cms, do not remove or move these lines
-            EmailHandler::setPlatformPath('dev-extensions')->addTemplateSettings('kernel', config('kernel.kernel.email', []), 'kernel');
-            EmailHandler::setPlatformPath('dev');
+            // EmailHandler::setPlatformPath('dev-extensions')->addTemplateSettings('kernel', config('kernel.kernel.email', []), 'kernel');
+            // EmailHandler::setPlatformPath('dev');
             #endregion
         });
     }
