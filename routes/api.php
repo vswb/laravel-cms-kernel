@@ -10,7 +10,8 @@ Route::group([
         'api'
     ],
     'prefix' => 'api/v1',
-    'namespace' => 'Platform\Api\Http\Controllers',
+    // NOTE: Changed namespace from Platform\Api to Platform\Kernel to match package structure
+    'namespace' => 'Platform\Kernel\Http\Controllers',
     'as' => 'kernel.api.v1.'
 ], function () {
     #region for laravel cms platform only: force update url cho toàn bộ hệ thống mã nguồn cms sau khi triển khai
@@ -39,15 +40,17 @@ Route::group([
     })->name('license.check');
     #endregion
 
-    Route::group(['middleware' => ['auth:sanctum']], function () {
-        Route::delete(
-            'delete-account',
-            [
-                'as' => 'platform.package.api.delete-account',
-                'uses' => 'ProfileController@deleteAccount'
-            ]
-        );
-    });
+    // NOTE: ProfileController doesn't exist in this package
+    // Uncomment and implement if needed, or remove this route group
+    // Route::group(['middleware' => ['auth:sanctum']], function () {
+    //     Route::delete(
+    //         'delete-account',
+    //         [
+    //             'as' => 'platform.package.api.delete-account',
+    //             'uses' => 'ProfileController@deleteAccount'
+    //         ]
+    //     );
+    // });
 });
 #endregion General routes, customize routes. To avoice modification core platform
 

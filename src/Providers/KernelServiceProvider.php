@@ -31,15 +31,14 @@ class KernelServiceProvider extends ServiceProvider
         //     AliasLoader::getInstance()->alias('ApiHelper', ApiHelper::class);
         // }
 
-        $this->app->booted(function () { // phải để trong booted để push với highest priority
-            // TODO Auth::guard('your-guard')->guest(), it is always return true (guest) and can not use Auth::guard('your-guard')->user()
-            // TODO added "StartSession Middleware" to fix the session store not set on REQUEST when you are using custom guard, it's very important
-
-            // $this->app->make('router')->pushMiddlewareToGroup('api', \App\Http\Middleware\EncryptCookies::class);
-            $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class);
-            $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\Session\Middleware\StartSession::class);
-            $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\View\Middleware\ShareErrorsFromSession::class);
-        });
+        // NOTE: StartSession middleware should NOT be added to API group as it can cause redirect loops
+        // API routes are stateless and don't need session middleware
+        // If you need session for specific API routes, add it to those routes individually, not to the entire API group
+        // 
+        // $this->app->booted(function () {
+        //     $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\Session\Middleware\StartSession::class);
+        //     $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\View\Middleware\ShareErrorsFromSession::class);
+        // });
 
         // $this->app->singleton(ExceptionHandler::class, Handler::class); // không binding được vì thứ tự chạy trước, nên bị chạy sau đè lên Platform\Base\Providers\BaseServiceProvider
 
