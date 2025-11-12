@@ -61,16 +61,16 @@ class KernelServiceProvider extends ServiceProvider
             // $this->app->register(MacroServiceProvider::class, true);
         }
 
-        $this
-            ->setNamespace('kernel')
-            ->loadMigrations()
-            ->loadAndPublishConfigurations(['general', 'email'])
-            ->loadAndPublishTranslations()
-            ->loadMigrations()
-            ->loadHelpers()
-            // ->loadAndPublishViews()
-            // ->loadRoutes(['web', 'api'])
-        ;
+        // $this
+        //     ->setNamespace('kernel')
+        //     ->loadMigrations()
+        //     ->loadAndPublishConfigurations(['general', 'email'])
+        //     ->loadAndPublishTranslations()
+        //     ->loadMigrations()
+        //     ->loadHelpers()
+        //     // ->loadAndPublishViews()
+        //     // ->loadRoutes(['web', 'api'])
+        // ;
 
         // $this->app['events']->listen(RouteMatched::class, function () {
         //     if (ApiHelper::enabled()) {
