@@ -13,7 +13,6 @@
         "google/apiclient": "^2.10",
         "asimlqt/php-google-spreadsheet-client": "3.0.2",
         "revolution/laravel-google-sheets": "*",
-        "javoscript/laravel-macroable-models": "*",
         "dev-extensions/thumbnail-generator": "dev-lte.6x-is_platform"
     },
     "extra": {
