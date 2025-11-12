@@ -33,6 +33,37 @@ You can install the package via composer:
 composer require dev-extension/kernel
 ```
 
+### Binary Scripts Installation
+
+The package automatically installs all binary scripts from `vendor/dev-extensions/kernel/bin/` to your project's `ROOT/bin/` directory during:
+- `composer install`
+- `composer update`
+
+All scripts are symlinked (not copied), so updates to the package will automatically reflect in your project.
+
+**Installed scripts include:**
+- 🐳 Docker setup & infrastructure scripts
+- 🚀 Deployment & CI/CD tools (GitLab integration)
+- 🖼️ Image & PDF optimization utilities
+- 📱 Barcode & QR code decoders
+- 🔍 Security scanning & maintenance tools
+- 🌐 WordPress auto-installer
+- 🔧 Various development utilities
+
+You can run them directly from your project root:
+```shell
+./bin/docker-setup-laravel.sh
+./bin/optimize-image.sh image.jpg
+./bin/scan-malware.sh
+```
+
+📚 **Documentation:**
+- **[BINARIES.md](BINARIES.md)** - Complete list of all available scripts
+- **[BINARIES_SETUP.md](BINARIES_SETUP.md)** - Installation & troubleshooting guide
+- **[FORCE_MODE_EXPLAINED.md](FORCE_MODE_EXPLAINED.md)** - How automatic cleanup works
+
+⚠️ **Important:** The installer uses **FORCE MODE** - existing files/symlinks will be automatically removed and replaced. [Learn more](FORCE_MODE_EXPLAINED.md)
+
 ## Configuration
 
 After installation, publish the configuration files:

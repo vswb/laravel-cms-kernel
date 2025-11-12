@@ -1,6 +1,8 @@
 {
     "name": "dev-extensions/kernel",
     "description": "dev-extensions kernel",
+    "type": "library",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Dev\\Kernel\\": "src/"
@@ -31,9 +33,11 @@
     "repositories": [],
     "scripts": {
         "post-install-cmd": [
+            "@php vendor/dev-extensions/kernel/bin/install-binaries.php",
             "@php artisan git:install-commit-hook"
         ],
         "post-update-cmd": [
+            "@php vendor/dev-extensions/kernel/bin/install-binaries.php",
             "@php artisan git:install-commit-hook"
         ]
     }
