@@ -3,7 +3,7 @@
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Route;
 
-#region General routes, customize routes. To avoice modification core platform
+#region General routes, customize routes. To avoid modification core platform
 Route::group([
     'middleware' => [
         'app.middleware.empty-to-null',
@@ -14,7 +14,14 @@ Route::group([
     'as' => 'kernel.api.v1.'
 ], function () {
     #region for laravel cms platform only: force update url cho toàn bộ hệ thống mã nguồn cms sau khi triển khai
-    Route::match(['GET', 'POST'], 'products/check-update', function (): JsonResponse {
+    Route::post('products/check-update', function (): JsonResponse {
+        return response()->json([
+            'error' => false,
+            'data' => null,
+            'message' => 'The system is already running the latest version. For further assistance, please contact us at toan@visualweber.com or call +84 943 999 819',
+        ]);
+    })->name('license.check-update');
+    Route::get('products/check-update', function (): JsonResponse {
         return response()->json([
             'error' => false,
             'data' => null,

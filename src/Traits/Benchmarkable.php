@@ -20,10 +20,11 @@ trait Benchmarkable
             'duration_ms' => $duration,
         ]);
 
-        $logger = property_exists($this, 'logger') ? $this->logger : null;
-        $channelToUse = $channel ?? $logger ?? 'default';
+        // $logger = property_exists($this, 'logger') ? $this->logger : null;
+        // $channelToUse = $channel ?? $logger ?? 'daily';
+        // Log::channel($channelToUse)->{$level}($log);
 
-        Log::channel($channelToUse)->{$level}($log);
+        $this->benchmarks[] = $log; // trả log ra và lưu một lần sau khi flush
 
         return $result;
     }
@@ -31,7 +32,7 @@ trait Benchmarkable
     public function flushBenchmarks(?string $channel = null, string $level = 'debug'): void
     {
         $logger = property_exists($this, 'logger') ? $this->logger : null;
-        $channelToUse = $channel ?? $logger ?? 'default';
+        $channelToUse = $channel ?? $logger ?? 'daily';
 
         foreach ($this->benchmarks as $log) {
             Log::channel($channelToUse)->{$level}($log);

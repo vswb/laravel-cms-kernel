@@ -44,7 +44,7 @@ class KernelServiceProvider extends ServiceProvider
             // TODO Auth::guard('your-guard')->guest(), it is always return true (guest) and can not use Auth::guard('your-guard')->user()
             // TODO added "StartSession Middleware" to fix the session store not set on REQUEST when you are using custom guard, it's very important
 
-            // $this->app->make('router')->pushMiddlewareToGroup('api', \App\Http\Middleware\EncryptCookies::class);
+            $this->app->make('router')->pushMiddlewareToGroup('api', \App\Http\Middleware\EncryptCookies::class);
             $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class);
             $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\Session\Middleware\StartSession::class);
             $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\View\Middleware\ShareErrorsFromSession::class);
@@ -73,7 +73,7 @@ class KernelServiceProvider extends ServiceProvider
             ->loadAndPublishTranslations()
             ->loadMigrations()
             ->loadHelpers()
-            // ->loadAndPublishViews()
+            ->loadAndPublishViews()
             ->loadRoutes(['web', 'api']);
 
         // $this->app['events']->listen(RouteMatched::class, function () {
@@ -81,7 +81,7 @@ class KernelServiceProvider extends ServiceProvider
         //         $this->app['router']->pushMiddlewareToGroup('api', ForceJsonResponseMiddleware::class);
         //     }
         // });
-
+        
         /* extend email template after CMS fully booted */
         $this->app->booted(function () {
             #region extend core to modify email template management in cms, do not remove or move these lines

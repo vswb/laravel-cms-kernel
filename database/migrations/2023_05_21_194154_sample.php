@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 use Dev\Base\Supports\Database\Blueprint;
 
 return new class extends Migration {
@@ -13,19 +14,7 @@ return new class extends Migration {
     public function up()
     {
         Schema::disableForeignKeyConstraints();
-        if (Schema::hasTable('media_files')) {
-            Schema::table('media_files', function (Blueprint $table) {
-                $foreignKeys = $this->listTableForeignKeys('media_files');
-
-
-                $indexes = $this->listTableIndexes('media_files');
-
-                // if (in_array('plans_slug_unique', $indexes)) $table->dropIndex('plans_slug_unique');
-
-                if (!Schema::hasColumn('media_files', 'visibility')) {
-                    $table->char('visibility', 191)->nullable(true);
-                }
-            });
+        if (Schema::hasTable('sample')) {
         }
         Schema::enableForeignKeyConstraints();
     }

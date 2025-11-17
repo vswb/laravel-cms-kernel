@@ -67,17 +67,18 @@ class MemberBirthdayNotificationCommand extends Command
                     && $birthday->startOfDay()->eq(Carbon::today()->startOfDay())
                 ) :
                     $this->info("Sending event to Member {$member->name}");
-                    Log::channel($this->logger)->info("Sending event to Member {$member->name}");
+                    // Log::channel($this->logger)->info("Sending event to Member {$member->name}");
 
                     event(new MemberBirthdayEvent($member));
                 else:
                     $this->info("Member {$member->name} has been notify in ... days");
-                    Log::channel($this->logger)->info("Member {$member->name} has been notify in ... days");
+                    // Log::channel($this->logger)->info("Member {$member->name} has been notify in ... days");
                 endif;
             endforeach;
         } catch (Throwable $th) {
             $this->error($th->getMessage());
-            Log::channel($this->logger)->error(__CLASS__ . " " . __FUNCTION__, (array) [$th->getFile(), $th->getLine(), $th->getMessage()]);
+            Log::channel($this->logger)->error(get_class($this) . '@' . __FUNCTION__, (array) [$th->getFile(), $th->getLine(), $th->getMessage()]);
+            Log::channel($this->logger)->error(get_class($this) . '@' . __FUNCTION__, (array) $th->getTraceAsString());
         }
 
         return Command::SUCCESS;

@@ -33,7 +33,7 @@ class KernelController extends BaseController
     {
         apps_telegram_send_message([
             "https://developers.facebook.com/docs/graph-api",
-            __CLASS__ . " " . __FUNCTION__ . " is running",
+            get_class($this) . '@' . __FUNCTION__ . " is running",
         ], 'pull'); // send important message to telegram
     }
 }
