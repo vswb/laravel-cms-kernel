@@ -12,6 +12,6 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        // 'api/*'
+        'api/*', // Exclude API routes - API thường dùng token-based auth, không cần CSRF
     ];
 }
