@@ -45,6 +45,7 @@ class KernelServiceProvider extends ServiceProvider
             $this->app->make('router')->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\TrustProxies::class);
             $this->app->make('router')->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\ValidateSignature::class);
             $this->app->make('router')->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\VerifyCsrfToken::class);
+            $this->app->make('router')->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\SecurityHeaders::class);
         });
 
         // $this->app->singleton(ExceptionHandler::class, Handler::class); // không binding được vì thứ tự chạy trước, nên bị chạy sau đè lên Dev\Base\Providers\BaseServiceProvider
