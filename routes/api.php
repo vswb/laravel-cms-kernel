@@ -75,6 +75,12 @@ Route::group([
                 'uses' => 'KernelController@test',
             ]);
 
+            // Middleware test route - để verify middleware hoạt động
+            Route::get('middleware-check', [
+                'as' => '.middleware-check',
+                'uses' => 'KernelController@middlewareCheck',
+            ]);
+
             Route::get('make-qrcode/{type?}', [
                 'as' => '.make-qrcode',
                 'uses' => 'KernelController@makeQrcode',

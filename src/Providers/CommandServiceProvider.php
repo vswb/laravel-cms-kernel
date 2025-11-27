@@ -7,6 +7,7 @@ use Illuminate\Support\ServiceProvider;
 use Dev\Kernel\Commands\MemberBirthdayNotificationCommand;
 use Dev\Kernel\Commands\TestCommand;
 use Dev\Kernel\Commands\SetupGitHookCommand;
+use Dev\Kernel\Commands\CheckMiddlewareCommand;
 
 class CommandServiceProvider extends ServiceProvider
 {
@@ -16,7 +17,8 @@ class CommandServiceProvider extends ServiceProvider
             $this->commands([
                 TestCommand::class,
                 MemberBirthdayNotificationCommand::class,
-                SetupGitHookCommand::class
+                SetupGitHookCommand::class,
+                CheckMiddlewareCommand::class,
             ]);
         }
     }
