@@ -68,7 +68,9 @@ class KernelServiceProvider extends ServiceProvider
             $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\VerifyCsrfToken::class);
             
             // 10. SecurityHeaders - Response headers (cuối cùng)
+            // Push vào cả API và Web groups để đảm bảo headers được set cho tất cả responses
             $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\SecurityHeaders::class);
+            $router->pushMiddlewareToGroup('web', \Dev\Kernel\Http\Middleware\SecurityHeaders::class);
         });
 
         // $this->app->singleton(ExceptionHandler::class, Handler::class); // không binding được vì thứ tự chạy trước, nên bị chạy sau đè lên Dev\Base\Providers\BaseServiceProvider
