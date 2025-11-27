@@ -31,28 +31,57 @@ trait LoadAndPublishDataTrait
     public function setNamespace(string $namespace): self
     {
         $this->namespace = ltrim(rtrim($namespace, '/'), '/');
+        // Reset cached base path when namespace changes
+        $this->basePath = null;
 
         return $this;
     }
 
     protected function getPath(?string $path = null): string
     {
-        $reflection = new ReflectionClass($this);
+        // Cache base path to avoid recalculating
+        if ($this->basePath === null) {
+            $reflection = new ReflectionClass($this);
+            $modulePath = str_replace('/src/Providers', '', File::dirname($reflection->getFilename()));
 
-        $modulePath = str_replace('/src/Providers', '', File::dirname($reflection->getFilename()));
+            $baseExtensionsPath = base_path('dev-extensions');
+            $baseVendorPath = base_path('vendor/dev-extensions');
 
-        // Hỗ trợ cả 2 trường hợp:
-        // 1. Local development: dev-extensions/libs/thumbnail-generator
-        // 2. Composer package: vendor/dev-extensions/thumbnail-generator
-        $isLocalDev = Str::contains($modulePath, base_path('dev-extensions/libs'));
-        $isVendorPackage = Str::contains($modulePath, base_path('vendor/dev-extensions'));
+            // Hỗ trợ cả 3 trường hợp:
+            // 1. Local development: dev-extensions/libs/thumbnail-generator
+            // 2. Local development: dev-extensions/packages/thumbnail-generator
+            // 3. Composer package: vendor/dev-extensions/thumbnail-generator
+            
+            $isLocalDev = Str::contains($modulePath, $baseExtensionsPath . '/libs') ||
+                          Str::contains($modulePath, $baseExtensionsPath . '/packages');
+            $isVendorPackage = Str::contains($modulePath, $baseVendorPath);
 
-        // Nếu không phải local dev và không phải vendor package, mới fallback
-        if (! $isLocalDev && ! $isVendorPackage) {
-            $modulePath = base_path('dev-extensions/' . $this->getDashedNamespace());
+            // Nếu đã là local dev hoặc vendor package, dùng luôn
+            if ($isLocalDev || $isVendorPackage) {
+                $this->basePath = $modulePath;
+            } else {
+                // Try to locate in packages or libs (only check if needed)
+                $dashedNamespace = $this->getDashedNamespace();
+                $searchPaths = [
+                    $baseExtensionsPath . '/packages/' . $dashedNamespace,
+                    $baseExtensionsPath . '/libs/' . $dashedNamespace,
+                ];
+
+                foreach ($searchPaths as $searchPath) {
+                    if (File::exists($searchPath)) {
+                        $this->basePath = $searchPath;
+                        break;
+                    }
+                }
+
+                // Fallback to default if not found
+                if ($this->basePath === null) {
+                    $this->basePath = $baseExtensionsPath . '/' . $dashedNamespace;
+                }
+            }
         }
 
-        return $modulePath . ($path ? '/' . ltrim($path, '/') : '');
+        return $this->basePath . ($path ? '/' . ltrim($path, '/') : '');
     }
 
     /**

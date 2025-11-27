@@ -2,22 +2,13 @@
 
 namespace Dev\Kernel\Providers;
 
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Foundation\AliasLoader;
-use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull;
-use Illuminate\Session\Middleware\StartSession;
-use Illuminate\Contracts\Debug\ExceptionHandler;
 
 use Dev\Base\Supports\Helper;
-use Dev\Base\Facades\BaseHelper;
 use Dev\Base\Facades\EmailHandler;
 use Dev\Base\Supports\ServiceProvider;
 use Dev\Kernel\Traits\LoadAndPublishDataTrait;
-use Dev\Api\Facades\ApiHelper;
-use Dev\Api\Http\Middleware\ForceJsonResponseMiddleware;
-use Dev\Kernel\Exceptions\HandleResponseException;
 
 class KernelServiceProvider extends ServiceProvider
 {
@@ -44,10 +35,16 @@ class KernelServiceProvider extends ServiceProvider
             // TODO Auth::guard('your-guard')->guest(), it is always return true (guest) and can not use Auth::guard('your-guard')->user()
             // TODO added "StartSession Middleware" to fix the session store not set on REQUEST when you are using custom guard, it's very important
 
-            $this->app->make('router')->pushMiddlewareToGroup('api', \App\Http\Middleware\EncryptCookies::class);
             $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class);
             $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\Session\Middleware\StartSession::class);
             $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\View\Middleware\ShareErrorsFromSession::class);
+
+            $this->app->make('router')->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\EncryptCookies::class);
+            $this->app->make('router')->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\TrimStrings::class);
+            $this->app->make('router')->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\TrustHosts::class);
+            $this->app->make('router')->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\TrustProxies::class);
+            $this->app->make('router')->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\ValidateSignature::class);
+            $this->app->make('router')->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\VerifyCsrfToken::class);
         });
 
         // $this->app->singleton(ExceptionHandler::class, Handler::class); // không binding được vì thứ tự chạy trước, nên bị chạy sau đè lên Dev\Base\Providers\BaseServiceProvider
@@ -81,7 +78,7 @@ class KernelServiceProvider extends ServiceProvider
         //         $this->app['router']->pushMiddlewareToGroup('api', ForceJsonResponseMiddleware::class);
         //     }
         // });
-        
+
         /* extend email template after CMS fully booted */
         $this->app->booted(function () {
             #region extend core to modify email template management in cms, do not remove or move these lines
