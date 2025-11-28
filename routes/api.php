@@ -45,16 +45,6 @@ Route::group([
         ]);
     })->name('license.check');
     #endregion
-
-    Route::group(['middleware' => ['auth:sanctum']], function () {
-        Route::delete(
-            'delete-account',
-            [
-                'as' => 'platform.package.api.delete-account',
-                'uses' => 'ProfileController@deleteAccount'
-            ]
-        );
-    });
 });
 #endregion General routes, customize routes. To avoice modification core platform
 
@@ -70,44 +60,10 @@ Route::group([
             'as' => 'test'
         ],
         function () {
-            Route::get('test', [
-                'as' => '.test',
-                'uses' => 'KernelController@test',
-            ]);
-
             // Middleware test route - để verify middleware hoạt động
             Route::get('middleware-check', [
                 'as' => '.middleware-check',
                 'uses' => 'KernelController@middlewareCheck',
-            ]);
-
-            Route::get('make-qrcode/{type?}', [
-                'as' => '.make-qrcode',
-                'uses' => 'KernelController@makeQrcode',
-            ]);
-            Route::get('plan/add-features-plan', [
-                'as' => '.plan.add-features-plan',
-                'uses' => 'KernelController@addFeaturesToPlan',
-            ]);
-            Route::get('plan/create-plan', [
-                'as' => '.plan.create-plan',
-                'uses' => 'KernelController@createPlan',
-            ]);
-            Route::get('plan/details/{id}', [
-                'as' => '.plan.get-plan',
-                'uses' => 'KernelController@getPlan',
-            ]);
-            Route::get('plan/details/{id}', [
-                'as' => '.plan.change-plan',
-                'uses' => 'KernelController@changePlan',
-            ]);
-            Route::get('plan/details/{id}', [
-                'as' => '.plan.get-feature',
-                'uses' => 'KernelController@getFeature',
-            ]);
-            Route::get('plan/create-subscription', [
-                'as' => '.plan.create-subscription',
-                'uses' => 'KernelController@createSubscription',
             ]);
         }
     );
