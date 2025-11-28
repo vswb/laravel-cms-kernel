@@ -101,7 +101,7 @@ class KernelServiceProvider extends ServiceProvider
 
         // $this->app['events']->listen(RouteMatched::class, function () {
         //     if (ApiHelper::enabled()) {
-        //         $this->app['router']->pushMiddlewareToGroup('api', ForceJsonResponseMiddleware::class);
+        //         $this->app['router']->pushMiddlewareToGroup('api', \Dev\Api\Http\Middleware\ForceJsonResponseMiddleware::class);
         //     }
         // });
 
