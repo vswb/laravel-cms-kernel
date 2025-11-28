@@ -31,6 +31,16 @@ class KernelServiceProvider extends ServiceProvider
         //     AliasLoader::getInstance()->alias('ApiHelper', ApiHelper::class);
         // }
 
+        // $this->app->booted(function () { // phải để trong booted để push với highest priority
+        //     // TODO Auth::guard('your-guard')->guest(), it is always return true (guest) and can not use Auth::guard('your-guard')->user()
+        //     // TODO added "StartSession Middleware" to fix the session store not set on REQUEST when you are using custom guard, it's very important
+
+        //     $this->app->make('router')->pushMiddlewareToGroup('api', \App\Http\Middleware\EncryptCookies::class);
+        //     $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class);
+        //     $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\Session\Middleware\StartSession::class);
+        //     $this->app->make('router')->pushMiddlewareToGroup('api', \Illuminate\View\Middleware\ShareErrorsFromSession::class);
+        // });
+
         $this->app->booted(function () {
             // Phải để trong booted để push với highest priority
             // TODO Auth::guard('your-guard')->guest(), it is always return true (guest) and can not use Auth::guard('your-guard')->user()
@@ -41,32 +51,34 @@ class KernelServiceProvider extends ServiceProvider
             // Thứ tự middleware theo Laravel standard:
             // 1. TrustHosts - Phải đầu tiên (validate host trước khi xử lý request)
             $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\TrustHosts::class);
-            
+
             // 2. TrustProxies - Phải sớm (để biết real IP của client)
             $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\TrustProxies::class);
-            
+
             // 3. EncryptCookies - Trước AddQueuedCookies
             $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\EncryptCookies::class);
-            
+
             // 4. AddQueuedCookiesToResponse - Sau EncryptCookies
             $router->pushMiddlewareToGroup('api', \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class);
-            
+
             // 5. StartSession - Trước ShareErrors
             $router->pushMiddlewareToGroup('api', \Illuminate\Session\Middleware\StartSession::class);
-            
+
             // 6. ShareErrorsFromSession - Sau StartSession
             $router->pushMiddlewareToGroup('api', \Illuminate\View\Middleware\ShareErrorsFromSession::class);
-            
+
             // 7. TrimStrings - Trim input data
             $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\TrimStrings::class);
-            
-            // 8. ValidateSignature - Validate signed URLs
-            $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\ValidateSignature::class);
-            
-            // 9. VerifyCsrfToken - CSRF protection (thường không cần cho API, nhưng giữ lại nếu cần)
-            // Note: Nếu API dùng token-based auth, có thể exclude trong VerifyCsrfToken::$except
-            $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\VerifyCsrfToken::class);
-            
+
+            // // 8. ValidateSignature - Validate signed URLs
+            // // Cân nhắc trước khi sử dụng, dẫn tới lỗi "Invalid signature."
+            // $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\ValidateSignature::class);
+
+            // // 9. VerifyCsrfToken - CSRF protection (thường không cần cho API, nhưng giữ lại nếu cần)
+            // // Cân nhắc trước khi sử dụng, dẫn tới lỗi "CsrfToken"
+            // // Note: Nếu API dùng token-based auth, có thể exclude trong VerifyCsrfToken::$except
+            // $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\VerifyCsrfToken::class);
+
             // 10. SecurityHeaders - Response headers (cuối cùng)
             // Push vào cả API và Web groups để đảm bảo headers được set cho tất cả responses
             $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\SecurityHeaders::class);
