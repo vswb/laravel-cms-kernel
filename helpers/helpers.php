@@ -14,7 +14,6 @@ use Google\Client;
 use Revolution\Google\Sheets\Facades\Sheets;
 use Symfony\Component\HttpFoundation\Response;
 
-
 #region Begin XML Pre-processing: Removes invalid XML
 if (!function_exists('apps_recursive_sanitize_for_xml')) {
     // Recursive apps_sanitize_for_xml.
@@ -202,7 +201,6 @@ if (!function_exists('apps_get_worksheet_column_titles')) {
         return $map;
     }
 }
-
 
 if (!function_exists('apps_build_mapped_values')) {
     /**
@@ -1450,6 +1448,13 @@ if (!function_exists('apps_apollo_crm_login')) {
  * @return  array , sử dụng casts trong model để xử lý json data, tránh sử dụng json_decode/json_encode
  */
 if (!function_exists('apps_json_to_database')) {
+    /**
+     * @param array|string|null $original
+     * @param mixed $value
+     * @param ?string $key
+     * @param bool $override
+     * @return array
+     */
     function apps_json_to_database(array|string|null $original, $value, $key = null, $override = true): array
     {
         if (is_string($original)) { // '{}'
@@ -1758,13 +1763,22 @@ if (! function_exists('apps_cache_store')) {
     /**
      * Lưu dữ liệu vào cache với khả năng nhóm theo group để dễ dàng quản lý và xóa theo nhóm.
      *
-     * @param string $key    Khóa cache duy nhất để lưu trữ dữ liệu.
+     * 🎯 OPTIMIZATION: Nếu đã có $appliedKey từ apps_cache_get_key(), truyền vào để tránh gọi lại.
+     *
+     * @param string $key    Khóa cache duy nhất (có thể là appliedKey hoặc key gốc).
      * @param mixed  $data   Dữ liệu cần lưu vào cache.
      * @param int    $time   Thời gian hết hạn của cache (tính bằng giây, mặc định 1 giờ).
      * @param string|null $group Tên nhóm cache để hỗ trợ xóa theo nhóm (tuỳ chọn).
+     * @param bool $isAppliedKey Nếu true, $key đã là appliedKey rồi, không cần gọi apps_cache_get_key().
      *
-     * 
+     * @example
+     * // Cách 1: Truyền key gốc (gọi apps_cache_get_key)
      * apps_cache_store('user_123', $userData, 3600, 'users');
+     * 
+     * // Cách 2: Truyền appliedKey đã có (OPTIMAL - tránh gọi apps_cache_get_key 2 lần)
+     * $appliedKey = apps_cache_get_key('user_123', 'users');
+     * // ... check cache ...
+     * apps_cache_store($appliedKey, $userData, 3600, 'users', true); // ⚠️ VẪN PHẢI TRUYỀN GROUP!
      * 
      * @return void
      */
@@ -1772,14 +1786,50 @@ if (! function_exists('apps_cache_store')) {
         string $key = 'default',
         $data = '',
         $time = 60 * 60,
-        string|null $group = null
-    ) {
+        string|null $group = null,
+        bool $isAppliedKey = false
+    ): string|null {
         try {
-            $cacheKey = apps_cache_get_key($key, $group);
+            if ($isAppliedKey) {
+                // Nếu đã có appliedKey, chỉ cần store data
+                $cacheKey = $key;
+                
+                // Nếu có group, vẫn phải register appliedKey vào groupData
+                if (!blank($group)) {
+                    $groupSlug = Str::slug($group);
+                    
+                    // Register group vào app cache list
+                    $app_cache_key = md5("app_data_cache_list");
+                    $cache_list = Cache::has($app_cache_key) ? Cache::get($app_cache_key) : [];
+                    $cache_list[$groupSlug] = true;
+                    Cache::forever($app_cache_key, $cache_list);
+                    
+                    // Thêm appliedKey vào groupData
+                    $groupName = "group_" . $groupSlug;
+                    $groupCacheKey = md5($groupName);
+                    $groupData = json_decode(Cache::get($groupCacheKey, '[]'), true) ?: [];
+                    
+                    if (!in_array($cacheKey, $groupData)) {
+                        $MAX_ITEM = 100;
+                        if (count($groupData) >= $MAX_ITEM) {
+                            Cache::forget($groupData[0]);
+                            array_shift($groupData);
+                        }
+                        array_push($groupData, $cacheKey);
+                        Cache::forever($groupCacheKey, apps_json_encode($groupData));
+                    }
+                }
+            } else {
+                // Cách cũ: gọi apps_cache_get_key() để tạo key và register group
+                $cacheKey = apps_cache_get_key($key, $group);
+            }
+            
             Cache::put($cacheKey, $data, $time);
+            return $cacheKey;
         } catch (\Throwable $th) {
             Log::channel(apps_log_channel("app_cache"))->error("Store data error at: " . $key . ", " . $group);
             Log::channel(apps_log_channel("app_cache"))->error($th->getMessage());
+            return null;
         }
     }
 }
@@ -1790,15 +1840,30 @@ if (! function_exists('apps_cache_get')) {
      * Dùng hàm này thay vì gọi trực tiếp cache()->get($key) để tránh sai key
      * khi thay đổi cơ chế prefix (ví dụ bật prefix theo APP_NAME).
      *
-     * @param string   $key
-     * @param mixed    $default
-     * @param ?string  $group
+     * 🎯 OPTIMIZATION: Nếu đã có $appliedKey từ apps_cache_get_key(), truyền vào để tránh gọi lại.
+     *
+     * @param string   $key         Khóa cache (có thể là appliedKey hoặc key gốc).
+     * @param mixed    $default     Giá trị mặc định nếu cache không tồn tại.
+     * @param ?string  $group       Tên nhóm cache (chỉ dùng khi $isAppliedKey = false).
+     * @param bool     $isAppliedKey Nếu true, $key đã là appliedKey rồi, không cần gọi apps_cache_get_key().
      * @return mixed
+     *
+     * @example
+     * // Cách 1: Truyền key gốc (gọi apps_cache_get_key) - BACKWARD COMPATIBLE
+     * $data = apps_cache_get('user_123', null, 'users');
+     *
+     * // Cách 2: Truyền appliedKey đã có (OPTIMAL - tránh gọi apps_cache_get_key)
+     * $appliedKey = apps_cache_get_key('user_123', 'users');
+     * $data = apps_cache_get($appliedKey, null, null, true);
      */
-    function apps_cache_get(string $key = 'default', $default = null, ?string $group = null)
-    {
+    function apps_cache_get(
+        string $key = 'default',
+        $default = null,
+        ?string $group = null,
+        bool $isAppliedKey = false
+    ) {
         try {
-            $cacheKey = apps_cache_get_key($key, $group);
+            $cacheKey = $isAppliedKey ? $key : apps_cache_get_key($key, $group);
             return Cache::get($cacheKey, $default);
         } catch (\Throwable $th) {
             Log::channel(apps_log_channel("app_cache"))->error("Get data error at: " . $key . ", " . $group);
@@ -1906,7 +1971,7 @@ if (!function_exists('apps_cache_debug')) {
         ];
 
         if ($showValue && $status === 'HIT') {
-            $logData['value'] = apps_cache_get($key, null, null);
+            $logData['value'] = apps_cache_get($key, null, null, false);
         }
 
         Log::channel($channel)->info('[Cache Debug]', $logData);
@@ -2155,7 +2220,6 @@ if (!function_exists('apps_get_image_url_webp')) {
         return $memo[$originalUrl] = ($webpUrl ?: $originalUrl);
     }
 }
-
 
 if (!function_exists('apps_leadgen_prepare_data')) {
     function apps_leadgen_prepare_data($lead, $mappings = null, $logger = 'daily')
