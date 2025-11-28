@@ -142,13 +142,15 @@ class Handler extends ExceptionHandler
             setting('enable_send_error_reporting_via_email', true)
             && ! app()->isDownForMaintenance()
         ) {
-            apps_telegram_send_message([
-                "⚠️⚠️⚠️ Application: " . env("APP_NAME"),
-                get_class($this) . '@' . __FUNCTION__ . " is running",
-                app('url')->full(),
-                $e->getMessage(),
-                "Line " . $e->getLine() . ": " . $e->getFile(),
-            ], 'pullerrors'); // send important message to telegram
+            if(function_exists('apps_telegram_send_message')) {
+                apps_telegram_send_message([
+                    "⚠️⚠️⚠️ Application: " . env("APP_NAME"),
+                    get_class($this) . '@' . __FUNCTION__ . " is running",
+                    app('url')->full(),
+                    $e->getMessage(),
+                    "Line " . $e->getLine() . ": " . $e->getFile(),
+                ], 'pullerrors'); // send important message to telegram
+            }
         }
 
         if (! app()->isLocal() && ! app()->runningInConsole() && ! app()->isDownForMaintenance()) {

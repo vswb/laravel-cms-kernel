@@ -1598,91 +1598,91 @@ fi
 
 ## (cd $SCRIPT_PATH/../ && LC_ALL=C $ZIP -r botble.zip . -x \*.buildpath/\* \*.idea/\* \*.project/\* \*nbproject/\* \*.git/\* \*.svn/\* \*.gitignore\* \*.gitattributes\* \*.md \*.MD \*.log \*.tar.gz \*.gz \*.tar \*.rar \*.DS_Store \*.lock \*desktop.ini vhost-nginx.conf \*.tmp \*.bat bin/delivery.sh bin/remove-botble.sh readme.html composer.lock wp-config.secure.php \*.yml\* \*.editorconfig\* \*.rnd\*)
 
-### Begin AppMedia & WebP support
-if [ -f "$SCRIPT_PATH/../dev/core/media/helpers/common.php" ]; then
-replacement=$(cat <<'PHP'
-/* Prefer .webp if exists for jpg/jpeg/png */
-        \$result = AppMedia::getImageUrl(\$url, \$size, \$relativePath, \$default);
-        \$originalUrl = \$result !== null ? (string) \$result : null;
+# ### Begin AppMedia & WebP support
+# if [ -f "$SCRIPT_PATH/../dev/core/media/helpers/common.php" ]; then
+# replacement=$(cat <<'PHP'
+# /* Prefer .webp if exists for jpg/jpeg/png */
+#         \$result = AppMedia::getImageUrl(\$url, \$size, \$relativePath, \$default);
+#         \$originalUrl = \$result !== null ? (string) \$result : null;
         
-        if (\$originalUrl === null) {
-            return null;
-        }
+#         if (\$originalUrl === null) {
+#             return null;
+#         }
         
-        if (function_exists('apps_get_image_url_webp')) {
-            \$webpUrl = apps_get_image_url_webp(\$originalUrl);
-            return \$webpUrl !== null ? (string) \$webpUrl : \$originalUrl;
-        }
-        return \$originalUrl;
-PHP
-)
+#         if (function_exists('apps_get_image_url_webp')) {
+#             \$webpUrl = apps_get_image_url_webp(\$originalUrl);
+#             return \$webpUrl !== null ? (string) \$webpUrl : \$originalUrl;
+#         }
+#         return \$originalUrl;
+# PHP
+# )
 
-  cd $SCRIPT_PATH/../ && LC_ALL=C perl -0777 -i -pe "s|return AppMedia\:\:getImageUrl\(\\\$url, \\\$size, \\\$relativePath, \\\$default\);|$replacement|g" $SCRIPT_PATH/../dev/core/media/helpers/common.php
-fi
-### ====
-if [ -f "$SCRIPT_PATH/../dev/core/media/helpers/common.php" ]; then
-replacement=$(cat <<'PHP'
-/* Prefer .webp if exists for jpg/jpeg/png */
-        \$result = AppMedia::getImageUrl(\$image, \$size, \$relativePath, AppMedia::getDefaultImage());
-        \$originalUrl = \$result !== null ? (string) \$result : null;
+#   cd $SCRIPT_PATH/../ && LC_ALL=C perl -0777 -i -pe "s|return AppMedia\:\:getImageUrl\(\\\$url, \\\$size, \\\$relativePath, \\\$default\);|$replacement|g" $SCRIPT_PATH/../dev/core/media/helpers/common.php
+# fi
+# ### ====
+# if [ -f "$SCRIPT_PATH/../dev/core/media/helpers/common.php" ]; then
+# replacement=$(cat <<'PHP'
+# /* Prefer .webp if exists for jpg/jpeg/png */
+#         \$result = AppMedia::getImageUrl(\$image, \$size, \$relativePath, AppMedia::getDefaultImage());
+#         \$originalUrl = \$result !== null ? (string) \$result : null;
         
-        if (\$originalUrl === null) {
-            return null;
-        }
+#         if (\$originalUrl === null) {
+#             return null;
+#         }
         
-        if (function_exists('apps_get_image_url_webp')) {
-            \$webpUrl = apps_get_image_url_webp(\$originalUrl);
-            return \$webpUrl !== null ? (string) \$webpUrl : \$originalUrl;
-        }
-        return \$originalUrl;
-PHP
-)
+#         if (function_exists('apps_get_image_url_webp')) {
+#             \$webpUrl = apps_get_image_url_webp(\$originalUrl);
+#             return \$webpUrl !== null ? (string) \$webpUrl : \$originalUrl;
+#         }
+#         return \$originalUrl;
+# PHP
+# )
 
-  cd $SCRIPT_PATH/../ && LC_ALL=C perl -0777 -i -pe "s|return AppMedia\:\:getImageUrl\(\\\$image, \\\$size, \\\$relativePath, AppMedia::getDefaultImage\(\)\);|$replacement|g" $SCRIPT_PATH/../dev/core/media/helpers/common.php
-fi
-### ====
-if [ -f "$SCRIPT_PATH/../dev/core/media/src/AppMedia.php" ]; then
-replacement=$(cat <<'PHP'
-/* Prefer .webp if exists for jpg/jpeg/png */
-if (!empty(\$path)) {
-    [\$purePath, \$query] = array_pad(explode('?', \$path, 2), 2, null);
-    \$ext = strtolower(pathinfo(\$purePath, PATHINFO_EXTENSION));
+#   cd $SCRIPT_PATH/../ && LC_ALL=C perl -0777 -i -pe "s|return AppMedia\:\:getImageUrl\(\\\$image, \\\$size, \\\$relativePath, AppMedia::getDefaultImage\(\)\);|$replacement|g" $SCRIPT_PATH/../dev/core/media/helpers/common.php
+# fi
+# ### ====
+# if [ -f "$SCRIPT_PATH/../dev/core/media/src/AppMedia.php" ]; then
+# replacement=$(cat <<'PHP'
+# /* Prefer .webp if exists for jpg/jpeg/png */
+# if (!empty(\$path)) {
+#     [\$purePath, \$query] = array_pad(explode('?', \$path, 2), 2, null);
+#     \$ext = strtolower(pathinfo(\$purePath, PATHINFO_EXTENSION));
 
-    if (in_array(\$ext, ['jpg', 'jpeg', 'png'], true)) {
-        \$webpPath = substr(\$purePath, 0, -strlen(\$ext)) . 'webp';
+#     if (in_array(\$ext, ['jpg', 'jpeg', 'png'], true)) {
+#         \$webpPath = substr(\$purePath, 0, -strlen(\$ext)) . 'webp';
 
-        if (Storage::exists(\$webpPath)) {
-            \$path = \$webpPath . (\$query ? ('?' . \$query) : '');
-        }
-    }
-}
-\$doSpacesEnabled = \$this->getMediaDriver() === 'do_spaces' && (int) setting('media_do_spaces_cdn_enabled');
-if (\$doSpacesEnabled) {
-PHP
-)
+#         if (Storage::exists(\$webpPath)) {
+#             \$path = \$webpPath . (\$query ? ('?' . \$query) : '');
+#         }
+#     }
+# }
+# \$doSpacesEnabled = \$this->getMediaDriver() === 'do_spaces' && (int) setting('media_do_spaces_cdn_enabled');
+# if (\$doSpacesEnabled) {
+# PHP
+# )
 
-  cd $SCRIPT_PATH/../ && LC_ALL=C perl -0777 -i -pe "s|if \(\\\$this->getMediaDriver\(\) === 'do_spaces' \&\& \(int\) setting\('media_do_spaces_cdn_enabled'\)\) \{|$replacement|g" $SCRIPT_PATH/../dev/core/media/src/AppMedia.php
-fi
+#   cd $SCRIPT_PATH/../ && LC_ALL=C perl -0777 -i -pe "s|if \(\\\$this->getMediaDriver\(\) === 'do_spaces' \&\& \(int\) setting\('media_do_spaces_cdn_enabled'\)\) \{|$replacement|g" $SCRIPT_PATH/../dev/core/media/src/AppMedia.php
+# fi
 
-### ====
-if [ -f "$SCRIPT_PATH/../dev/libs/theme/src/AssetContainer.php" ]; then
-replacement=$(cat <<'PHP'
-\$originPath = \$this->getCurrentPath\(\) . \$uri;
-\$path = \$originPath;
-/* Prefer .webp if exists for jpg/jpeg/png */
-\$parsedPath = strtok(\$path, '?'); // strip query if any
-\$ext = strtolower(pathinfo(\$parsedPath, PATHINFO_EXTENSION));
-if (in_array(\$ext, ['jpg', 'jpeg', 'png'])) {
-    \$webpPath = substr(\$parsedPath, 0, -strlen(\$ext)) . 'webp';
-    if (File::exists(public_path(ltrim(\$webpPath, '/')))) {
-        // keep query string if present on original \$path
-        \$query = strstr(\$path, '?');
-        \$path = \$webpPath . (\$query ?: '');
-    }
-}
-PHP
-)
+# ### ====
+# if [ -f "$SCRIPT_PATH/../dev/libs/theme/src/AssetContainer.php" ]; then
+# replacement=$(cat <<'PHP'
+# \$originPath = \$this->getCurrentPath\(\) . \$uri;
+# \$path = \$originPath;
+# /* Prefer .webp if exists for jpg/jpeg/png */
+# \$parsedPath = strtok(\$path, '?'); // strip query if any
+# \$ext = strtolower(pathinfo(\$parsedPath, PATHINFO_EXTENSION));
+# if (in_array(\$ext, ['jpg', 'jpeg', 'png'])) {
+#     \$webpPath = substr(\$parsedPath, 0, -strlen(\$ext)) . 'webp';
+#     if (File::exists(public_path(ltrim(\$webpPath, '/')))) {
+#         // keep query string if present on original \$path
+#         \$query = strstr(\$path, '?');
+#         \$path = \$webpPath . (\$query ?: '');
+#     }
+# }
+# PHP
+# )
 
-  cd $SCRIPT_PATH/../ && LC_ALL=C perl -0777 -i -pe "s|\\\$path = \\\$this->getCurrentPath\(\) . \\\$uri;|$replacement|g" $SCRIPT_PATH/../dev/libs/theme/src/AssetContainer.php
-fi
+#   cd $SCRIPT_PATH/../ && LC_ALL=C perl -0777 -i -pe "s|\\\$path = \\\$this->getCurrentPath\(\) . \\\$uri;|$replacement|g" $SCRIPT_PATH/../dev/libs/theme/src/AssetContainer.php
+# fi
 ### End AppMedia & WebP support
