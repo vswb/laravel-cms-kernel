@@ -1880,44 +1880,85 @@ if (! function_exists('apps_cache_flush')) {
      * - Nếu chỉ truyền `$cacheKey`, hàm sẽ xóa cache theo key cụ thể.
      * - Nếu truyền `$group`, hàm sẽ xóa tất cả cache thuộc nhóm đó và xóa luôn nhóm cache.
      *
-     * @param string|null $cacheKey  Khóa cache cần xóa (mặc định là 'default').
-     * @param string|null $group     Nhóm cache cần xóa toàn bộ (tuỳ chọn).
+     * 🎯 OPTIMIZATION: Nếu đã có $appliedKey từ apps_cache_get_key(), truyền vào để tránh gọi lại.
      *
+     * @param string|null $cacheKey  Khóa cache cần xóa (có thể là appliedKey hoặc key gốc).
+     * @param string|null $group     Nhóm cache cần xóa toàn bộ (tuỳ chọn).
+     * @param bool $isAppliedKey     Nếu true, $cacheKey đã là appliedKey rồi, không cần gọi apps_cache_get_key().
+     *
+     * @example
+     * // Cách 1: Truyền key gốc (gọi apps_cache_get_key) - BACKWARD COMPATIBLE
      * apps_cache_flush('user_123'); // xoá 1 key
-     * apps_cache_flush(null, 'users'); // xoá cả nhóm 'users
+     * apps_cache_flush(null, 'users'); // xoá cả nhóm 'users'
+     *
+     * // Cách 2: Truyền appliedKey đã có (OPTIMAL - tránh gọi apps_cache_get_key)
+     * $appliedKey = apps_cache_get_key('user_123', null);
+     * apps_cache_flush($appliedKey, null, true); // ⚠️ PHẢI SET isAppliedKey = true
      * 
      * @return void
      */
     function apps_cache_flush(
         string|null $cacheKey = 'default',
-        string|null $group = null
+        string|null $group = null,
+        bool $isAppliedKey = false
     ) {
         try {
             if (blank($group)) {
+                // Nếu không có group, xóa cache theo key cụ thể
+                if (blank($cacheKey)) {
+                    Log::channel(apps_log_channel("app_cache"))->warning("Flush skipped: cacheKey is blank");
+                    return;
+                }
+
                 // Tính key đã áp dụng prefix để xoá chính xác
-                $appliedKey = apps_cache_get_key($cacheKey, null);
-                Cache::forget($appliedKey); // Nếu không truyền group thì là xoá một key
-                Log::channel(apps_log_channel("app_cache"))->debug("Flushed cached data $cacheKey");
+                $appliedKey = $isAppliedKey ? $cacheKey : apps_cache_get_key($cacheKey, null);
+                Cache::forget($appliedKey);
+                Log::channel(apps_log_channel("app_cache"))->info("Flushed cached data", [
+                    'original_key' => $cacheKey,
+                    'applied_key' => $appliedKey
+                ]);
             } else {
-                // Xoá toàn bộ key trong group đó.
+                // Xóa toàn bộ cache trong group
+                Log::channel(apps_log_channel("app_cache"))->info("Flushing cached data with group: $group");
+
                 $groupSlug = Str::slug($group);
                 $groupCacheKey = md5("group_" . $groupSlug);
-                $groupData = [];
-                if (Cache::has($groupCacheKey)) {
-                    $groupData = json_decode(Cache::get($groupCacheKey), true) ?? [];
-                    if (!blank($groupData) && count($groupData) > 0) {
-                        foreach ($groupData as $key => $value) {
-                            Cache::forget($value); // Xoá cache con trong group
-                            Log::channel(apps_log_channel("app_cache"))->debug("Flushed cached data $value");
-                        }
-                        Log::channel(apps_log_channel("app_cache"))->debug("Flushed cached data $groupCacheKey");
-                        Cache::forget($groupCacheKey); // Xoá luôn tệp group sau khi xoá hết các cacheKey con nằm trong nó
-                    }
+                
+                if (!Cache::has($groupCacheKey)) {
+                    Log::channel(apps_log_channel("app_cache"))->debug("Group cache key not found: $groupCacheKey");
+                    return;
                 }
+
+                $groupData = json_decode(Cache::get($groupCacheKey), true) ?? [];
+                
+                if (blank($groupData) || count($groupData) === 0) {
+                    Log::channel(apps_log_channel("app_cache"))->debug("Group data is empty");
+                    Cache::forget($groupCacheKey); // Xóa group key ngay cả khi không có data
+                    return;
+                }
+
+                // Xóa từng cache key trong group
+                foreach ($groupData as $appliedKey) {
+                    Cache::forget($appliedKey);
+                    Log::channel(apps_log_channel("app_cache"))->debug("Flushed cached data: $appliedKey");
+                }
+
+                // Xóa group cache key sau khi đã xóa hết các cache con
+                Cache::forget($groupCacheKey);
+                Log::channel(apps_log_channel("app_cache"))->info("Flushed group cache", [
+                    'group' => $group,
+                    'group_cache_key' => $groupCacheKey,
+                    'total_keys' => count($groupData)
+                ]);
             }
         } catch (\Throwable $th) {
-            Log::channel(apps_log_channel("app_cache"))->error("Flush data error at: $cacheKey, $group");
-            Log::channel(apps_log_channel("app_cache"))->error($th->getMessage());
+            Log::channel(apps_log_channel("app_cache"))->error("Flush data error", [
+                'cacheKey' => $cacheKey,
+                'group' => $group,
+                'isAppliedKey' => $isAppliedKey,
+                'error' => $th->getMessage(),
+                'trace' => $th->getTraceAsString()
+            ]);
         }
     }
 }
@@ -2358,6 +2399,8 @@ if (!function_exists('apps_leadgen_prepare_data')) {
             'nhu_cau',
             'nhu_cau_cua_ban',
             'yeu_cau',
+            'quy_khach_hien_dang_co_nhu_cau',
+            'quy_khach_hay_chon_nhu_cau_ve_dong_xe',
         ], null);
 
         $lead['city'] = $lead['province'] = $lead['thanh_pho'] = $lead['tinh_thanh_pho'] = $lead['tinh_thanh'] = Str::limit(
@@ -2372,6 +2415,7 @@ if (!function_exists('apps_leadgen_prepare_data')) {
                 'ban_dang_song_o_tinh_thanh_pho_nao',
                 'ban_song_tai_tinhthanh_pho_nao',
                 'ban_song_o_tinhthanh_pho_nao',
+                'quy_khach_hay_chon_noi_sinh_song',
                 'chon_dia_diem',
                 'chon_dai_ly',
                 'dai_ly',
@@ -2401,6 +2445,7 @@ if (!function_exists('apps_leadgen_prepare_data')) {
             'address2',
             'dia_chi',
             'so_nha_va_ten_duong',
+            'street_address'
         ], null);
 
         $lead['notes'] = $lead['description'] = apps_array_get_first_non_empty($lead, [
