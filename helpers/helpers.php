@@ -2015,13 +2015,8 @@ if (! function_exists('apps_cache_flush')) {
                 
                 if (!Cache::has($groupCacheKey)) {
                     // Group chưa được tạo hoặc đã bị xóa - đây là trường hợp bình thường
-                    // Log với level debug để trace root cause nếu cần
-                    Log::channel(apps_log_channel("app_cache"))->debug("Group cache key not found (no cache to flush)", [
-                        'group' => $group,
-                        'group_cache_key' => $groupCacheKey,
-                        'caller' => $caller['method'] ?? 'unknown',
-                        'file' => basename($caller['file'] ?? 'unknown') . ':' . ($caller['line'] ?? 0)
-                    ]);
+                    // Không log để tránh spam log khi Observer được trigger nhiều lần
+                    // (ví dụ: bulk update ProviderForm sẽ trigger Observer nhiều lần)
                     return;
                 }
                 
