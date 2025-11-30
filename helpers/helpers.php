@@ -1876,6 +1876,51 @@ if (! function_exists('apps_cache_get')) {
     }
 }
 
+if (! function_exists('apps_cache_get_caller_info')) {
+    /**
+     * Lấy thông tin caller để trace root cause
+     * 
+     * @return array
+     */
+    function apps_cache_get_caller_info(): array
+    {
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5);
+        
+        // Bỏ qua chính function này và các helper functions
+        $skipFunctions = ['apps_cache_flush', 'apps_cache_get_caller_info'];
+        
+        foreach ($trace as $index => $frame) {
+            $function = $frame['function'] ?? '';
+            $class = $frame['class'] ?? '';
+            
+            // Tìm caller đầu tiên không phải là helper function
+            if (!in_array($function, $skipFunctions)) {
+                return [
+                    'file' => $frame['file'] ?? 'unknown',
+                    'line' => $frame['line'] ?? 0,
+                    'class' => $class,
+                    'function' => $function,
+                    'method' => $class ? "{$class}::{$function}" : $function,
+                ];
+            }
+        }
+        
+        // Fallback: lấy frame đầu tiên có thông tin
+        if (isset($trace[2])) {
+            $frame = $trace[2];
+            return [
+                'file' => $frame['file'] ?? 'unknown',
+                'line' => $frame['line'] ?? 0,
+                'class' => $frame['class'] ?? '',
+                'function' => $frame['function'] ?? 'unknown',
+                'method' => isset($frame['class']) ? "{$frame['class']}::{$frame['function']}" : ($frame['function'] ?? 'unknown'),
+            ];
+        }
+        
+        return ['file' => 'unknown', 'line' => 0, 'method' => 'unknown'];
+    }
+}
+
 if (! function_exists('apps_cache_flush')) {
     /**
      * Xóa dữ liệu trong cache theo key hoặc theo nhóm.
@@ -1906,6 +1951,9 @@ if (! function_exists('apps_cache_flush')) {
         bool $isAppliedKey = false
     ) {
         try {
+            // Lấy thông tin caller để trace root cause
+            $caller = apps_cache_get_caller_info();
+            
             if (blank($group)) {
                 // Nếu không có group, xóa cache theo key cụ thể
                 if (blank($cacheKey)) {
@@ -1956,19 +2004,32 @@ if (! function_exists('apps_cache_flush')) {
                 
                 Log::channel(apps_log_channel("app_cache"))->info("Flushed cached data", [
                     'original_key' => $cacheKey,
-                    'applied_key' => $appliedKey
+                    'applied_key' => $appliedKey,
+                    'caller' => $caller['method'] ?? 'unknown',
+                    'file' => basename($caller['file'] ?? 'unknown') . ':' . ($caller['line'] ?? 0)
                 ]);
             } else {
                 // Xóa toàn bộ cache trong group
-                Log::channel(apps_log_channel("app_cache"))->info("Flushing cached data with group: $group");
-
                 $groupSlug = Str::slug($group);
                 $groupCacheKey = md5("group_" . $groupSlug);
                 
                 if (!Cache::has($groupCacheKey)) {
-                    Log::channel(apps_log_channel("app_cache"))->debug("Group cache key not found: $groupCacheKey");
+                    // Group chưa được tạo hoặc đã bị xóa - đây là trường hợp bình thường
+                    // Log với level debug để trace root cause nếu cần
+                    Log::channel(apps_log_channel("app_cache"))->debug("Group cache key not found (no cache to flush)", [
+                        'group' => $group,
+                        'group_cache_key' => $groupCacheKey,
+                        'caller' => $caller['method'] ?? 'unknown',
+                        'file' => basename($caller['file'] ?? 'unknown') . ':' . ($caller['line'] ?? 0)
+                    ]);
                     return;
                 }
+                
+                Log::channel(apps_log_channel("app_cache"))->info("Flushing cached data with group: $group", [
+                    'group' => $group,
+                    'caller' => $caller['method'] ?? 'unknown',
+                    'file' => basename($caller['file'] ?? 'unknown') . ':' . ($caller['line'] ?? 0)
+                ]);
 
                 $groupData = json_decode(Cache::get($groupCacheKey), true) ?? [];
                 
@@ -1989,7 +2050,9 @@ if (! function_exists('apps_cache_flush')) {
                 Log::channel(apps_log_channel("app_cache"))->info("Flushed group cache", [
                     'group' => $group,
                     'group_cache_key' => $groupCacheKey,
-                    'total_keys' => count($groupData)
+                    'total_keys' => count($groupData),
+                    'caller' => $caller['method'] ?? 'unknown',
+                    'file' => basename($caller['file'] ?? 'unknown') . ':' . ($caller['line'] ?? 0)
                 ]);
             }
         } catch (\Throwable $th) {
