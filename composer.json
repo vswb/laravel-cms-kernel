@@ -1,43 +1,44 @@
 {
-    "name": "dev-extensions/kernel",
-    "description": "dev-extensions kernel",
-    "type": "library",
-    "license": "MIT",
-    "autoload": {
-        "psr-4": {
-            "Dev\\Kernel\\": "src/"
-        }
-    },
-    "require": {
-        "maatwebsite/excel": "^3.1",
-        "google/apiclient": "^2.10",
-        "asimlqt/php-google-spreadsheet-client": "3.0.2",
-        "revolution/laravel-google-sheets": "*",
-        "javoscript/laravel-macroable-models": "*"
-    },
-    "extra": {
-        "laravel": {
-            "providers": [
-                "Dev\\Kernel\\Providers\\KernelServiceProvider"
-            ],
-            "aliases": {}
-        },
-        "google/apiclient-services": [
-            "Analytics",
-            "Sheets",
-            "Drive",
-            "DriveActivity"
-        ]
-    },
-    "repositories": [],
-    "scripts": {
-        "post-install-cmd": [
-            "@php vendor/dev-extensions/kernel/bin/install-binaries.php",
-            "@php artisan git:install-commit-hook"
-        ],
-        "post-update-cmd": [
-            "@php vendor/dev-extensions/kernel/bin/install-binaries.php",
-            "@php artisan git:install-commit-hook"
-        ]
+  "name": "dev-extensions/kernel",
+  "description": "dev-extensions kernel",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Dev\\Kernel\\": "src/"
     }
+  },
+  "require": {
+    "laravel/framework": "^9.0|^10.0|^11.0",
+    "maatwebsite/excel": "^3.1",
+    "google/apiclient": "^2.10",
+    "asimlqt/php-google-spreadsheet-client": "3.0.2",
+    "revolution/laravel-google-sheets": "*",
+    "javoscript/laravel-macroable-models": "*"
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Dev\\Kernel\\Providers\\KernelServiceProvider"
+      ],
+      "aliases": {}
+    },
+    "google/apiclient-services": [
+      "Analytics",
+      "Sheets",
+      "Drive",
+      "DriveActivity"
+    ]
+  },
+  "repositories": [],
+  "scripts": {
+    "post-install-cmd": [
+      "@php vendor/dev-extensions/kernel/bin/install-binaries.php",
+      "@php artisan git:install-commit-hook"
+    ],
+    "post-update-cmd": [
+      "@php vendor/dev-extensions/kernel/bin/install-binaries.php",
+      "@php artisan git:install-commit-hook"
+    ]
+  }
 }
