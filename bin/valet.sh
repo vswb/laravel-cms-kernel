@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ==== Detect PHP version của project hiện tại ====
-PROJECT_PHP=$(valet php 2>/dev/null)  # lấy PHP version hiện tại của Valet
-if [[ -z "$PROJECT_PHP" ]]; then
-    echo "Không detect được PHP version, dùng php@8.4 làm mặc định."
+PROJECT_PHP=$(valet which | awk '{print $1}')
+if [ -z "$PROJECT_PHP" ]; then
+    echo "Không thể detect PHP version. Dùng php@8.4 làm mặc định."
     PROJECT_PHP="php@8.4"
 fi
 
