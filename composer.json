@@ -9,7 +9,7 @@
     }
   },
   "require": {
-    "laravel/framework": "^9.0|^10.0|^11.0",
+    "laravel/framework": "^9.0|^10.0|^11.0|^12.0",
     "maatwebsite/excel": "^3.1",
     "google/apiclient": "^2.10",
     "asimlqt/php-google-spreadsheet-client": "3.0.2",
