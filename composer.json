@@ -10,18 +10,14 @@
   },
   "require": {
     "laravel/framework": "^9.0|^10.0|^11.0|^12.0",
-    "maatwebsite/excel": "^3.1",
-    "google/apiclient": "^2.18",
-    "asimlqt/php-google-spreadsheet-client": "3.0.2",
-    "revolution/laravel-google-sheets": "*",
-    "javoscript/laravel-macroable-models": "*"
+    "javoscript/laravel-macroable-models": "*",
+    "google/apiclient": "^2.18"
   },
   "extra": {
     "laravel": {
       "providers": [
         "Dev\\Kernel\\Providers\\KernelServiceProvider"
-      ],
-      "aliases": {}
+      ]
     },
     "google/apiclient-services": [
       "Analytics",
@@ -30,7 +26,6 @@
       "DriveActivity"
     ]
   },
-  "repositories": [],
   "scripts": {
     "post-install-cmd": [
       "@php artisan git:install-commit-hook"
