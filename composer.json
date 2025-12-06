@@ -27,6 +27,10 @@
     ]
   },
   "scripts": {
+    "post-autoload-dump": [
+      "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+      "@php artisan package:discover --ansi"
+    ],
     "post-install-cmd": [
       "@php artisan git:install-commit-hook"
     ],
@@ -34,5 +38,17 @@
       "@php artisan git:install-commit-hook",
       "Google\\Task\\Composer::cleanup"
     ]
-  }
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true,
+    "allow-plugins": {
+      "composer/package-versions-deprecated": true,
+      "pestphp/pest-plugin": true,
+      "wikimedia/composer-merge-plugin": true
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
 }

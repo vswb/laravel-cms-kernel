@@ -268,7 +268,8 @@ if (!function_exists('apps_build_mapped_values')) {
             Log::channel($logger)->info('mapping_key', (array) $mapping_key);
 
             foreach ((array) $_mappings as $__mapping) {
-                if (!isset($__mapping['key'])) continue;
+                if (!isset($__mapping['key']))
+                    continue;
 
                 /* tách theo '|' TRƯỚC, rồi mới slug (fix bug thứ tự cũ) */
                 /**
@@ -416,11 +417,11 @@ if (!function_exists('apps_google_sheet')) {
                     $client = new Client();
                     $client->setApplicationName(env('APP_NAME'));
                     $client->setScopes([
-                        \Google\Service\Sheets::SPREADSHEETS,
-                        \Google\Service\Sheets::DRIVE_FILE,
-                        // \Google\Service\Sheets::DRIVE, // (chỉ bật tạm khi cần token) ứng dụng cần có security certificates theo tiêu chuẩn google (khá khó), See, edit, create, and delete all of your Google Drive files
-                        // \Google\Service\Localservices::ADWORDS,
-                        // \Google\Service\Script::SCRIPT_PROJECTS
+                        'https://www.googleapis.com/auth/spreadsheets',
+                        'https://www.googleapis.com/auth/drive.file',
+                        // 'https://www.googleapis.com/auth/drive', // (chỉ bật tạm khi cần token) ứng dụng cần có security certificates theo tiêu chuẩn google (khá khó), See, edit, create, and delete all of your Google Drive files
+                        // 'https://www.googleapis.com/auth/adwords,
+                        // 'https://www.googleapis.com/auth/script.projects'
                     ]);
                     $client->setAccessType('offline');
                     #endregion
@@ -814,10 +815,10 @@ if (!function_exists('apps_log_channel')) {
             if (!Config::get("logging.channels.{$loggerName}")) {
                 Config::set("logging.channels.{$loggerName}", [
                     'driver' => 'daily',
-                    'path'   => storage_path("logs/{$loggerName}.log"),
-                    'level'  => env('APP_LOG_LEVEL', 'debug'),
-                    'days'   => 14,
-                    'lazy'   => true, // tối ưu I/O ghi disk, không nên bật nếu ghi log quan trọng liên quan tới log tài chính vì cần phải ghi ngay.
+                    'path' => storage_path("logs/{$loggerName}.log"),
+                    'level' => env('APP_LOG_LEVEL', 'debug'),
+                    'days' => 14,
+                    'lazy' => true, // tối ưu I/O ghi disk, không nên bật nếu ghi log quan trọng liên quan tới log tài chính vì cần phải ghi ngay.
                 ]);
             }
 
@@ -825,7 +826,7 @@ if (!function_exists('apps_log_channel')) {
         } catch (\Throwable $th) {
             Log::error('apps_log_channel exception', [
                 'message' => $th->getMessage(),
-                'trace'   => $th->getTraceAsString(),
+                'trace' => $th->getTraceAsString(),
             ]);
             return config('logging.default');
         }
@@ -1637,7 +1638,8 @@ if (!function_exists('apps_telegram_send_message')) {
     ) {
         #region Important Telegram notification
         try {
-            if (blank($logger)) $logger = 'daily';
+            if (blank($logger))
+                $logger = 'daily';
 
             if (!in_array(app()->environment(), ['production', 'prod'], true)) { // giới hạn gửi ở production
                 Log::channel($logger)->info('[Telegram::Skipped]', [
@@ -1665,7 +1667,7 @@ if (!function_exists('apps_telegram_send_message')) {
 
             $telegramDfOptions['text'] = \Illuminate\Support\Str::limit( // có thể sử dụng facades app('url) nhưng không sử dụng được helper str() lúc này, có thể vì chưa load
                 is_array($message) ?
-                    implode("\n", $message) : $message,
+                implode("\n", $message) : $message,
                 4096
             );
 
@@ -1702,7 +1704,7 @@ if (!function_exists('apps_phone_extraction')) {
  * 
  * Trả lại key dùng để lưu vào cache.
  */
-if (! function_exists('apps_cache_get_key')) {
+if (!function_exists('apps_cache_get_key')) {
     /**
      * Tự động tạo key trong danh sách group
      * Lưu lại group vào danh sách các key để quản lí và xoá
@@ -1762,7 +1764,7 @@ if (! function_exists('apps_cache_get_key')) {
     }
 }
 
-if (! function_exists('apps_cache_store')) {
+if (!function_exists('apps_cache_store')) {
     /**
      * Lưu dữ liệu vào cache với khả năng nhóm theo group để dễ dàng quản lý và xóa theo nhóm.
      *
@@ -1796,22 +1798,22 @@ if (! function_exists('apps_cache_store')) {
             if ($isAppliedKey) {
                 // Nếu đã có appliedKey, chỉ cần store data
                 $cacheKey = $key;
-                
+
                 // Nếu có group, vẫn phải register appliedKey vào groupData
                 if (!blank($group)) {
                     $groupSlug = Str::slug($group);
-                    
+
                     // Register group vào app cache list
                     $app_cache_key = md5("app_data_cache_list");
                     $cache_list = Cache::has($app_cache_key) ? Cache::get($app_cache_key) : [];
                     $cache_list[$groupSlug] = true;
                     Cache::forever($app_cache_key, $cache_list);
-                    
+
                     // Thêm appliedKey vào groupData
                     $groupName = "group_" . $groupSlug;
                     $groupCacheKey = md5($groupName);
                     $groupData = json_decode(Cache::get($groupCacheKey, '[]'), true) ?: [];
-                    
+
                     if (!in_array($cacheKey, $groupData)) {
                         $MAX_ITEM = 100;
                         if (count($groupData) >= $MAX_ITEM) {
@@ -1826,7 +1828,7 @@ if (! function_exists('apps_cache_store')) {
                 // Cách cũ: gọi apps_cache_get_key() để tạo key và register group
                 $cacheKey = apps_cache_get_key($key, $group);
             }
-            
+
             Cache::put($cacheKey, $data, $time);
             return $cacheKey;
         } catch (\Throwable $th) {
@@ -1837,7 +1839,7 @@ if (! function_exists('apps_cache_store')) {
     }
 }
 
-if (! function_exists('apps_cache_get')) {
+if (!function_exists('apps_cache_get')) {
     /**
      * Lấy dữ liệu từ cache theo cùng logic tạo key (có hỗ trợ group/prefix).
      * Dùng hàm này thay vì gọi trực tiếp cache()->get($key) để tránh sai key
@@ -1876,7 +1878,7 @@ if (! function_exists('apps_cache_get')) {
     }
 }
 
-if (! function_exists('apps_cache_get_caller_info')) {
+if (!function_exists('apps_cache_get_caller_info')) {
     /**
      * Lấy thông tin caller để trace root cause
      * 
@@ -1885,14 +1887,14 @@ if (! function_exists('apps_cache_get_caller_info')) {
     function apps_cache_get_caller_info(): array
     {
         $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5);
-        
+
         // Bỏ qua chính function này và các helper functions
         $skipFunctions = ['apps_cache_flush', 'apps_cache_get_caller_info'];
-        
+
         foreach ($trace as $index => $frame) {
             $function = $frame['function'] ?? '';
             $class = $frame['class'] ?? '';
-            
+
             // Tìm caller đầu tiên không phải là helper function
             if (!in_array($function, $skipFunctions)) {
                 return [
@@ -1904,7 +1906,7 @@ if (! function_exists('apps_cache_get_caller_info')) {
                 ];
             }
         }
-        
+
         // Fallback: lấy frame đầu tiên có thông tin
         if (isset($trace[2])) {
             $frame = $trace[2];
@@ -1916,12 +1918,12 @@ if (! function_exists('apps_cache_get_caller_info')) {
                 'method' => isset($frame['class']) ? "{$frame['class']}::{$frame['function']}" : ($frame['function'] ?? 'unknown'),
             ];
         }
-        
+
         return ['file' => 'unknown', 'line' => 0, 'method' => 'unknown'];
     }
 }
 
-if (! function_exists('apps_cache_flush')) {
+if (!function_exists('apps_cache_flush')) {
     /**
      * Xóa dữ liệu trong cache theo key hoặc theo nhóm.
      *
@@ -1953,7 +1955,7 @@ if (! function_exists('apps_cache_flush')) {
         try {
             // Lấy thông tin caller để trace root cause
             $caller = apps_cache_get_caller_info();
-            
+
             if (blank($group)) {
                 // Nếu không có group, xóa cache theo key cụ thể
                 if (blank($cacheKey)) {
@@ -1963,45 +1965,45 @@ if (! function_exists('apps_cache_flush')) {
 
                 // Tính key đã áp dụng prefix để xoá chính xác
                 $appliedKey = $isAppliedKey ? $cacheKey : apps_cache_get_key($cacheKey, null);
-                
+
                 // Xóa cache
                 Cache::forget($appliedKey);
-                
+
                 // QUAN TRỌNG: Xóa key khỏi tất cả các group có chứa nó để tránh memory leak
                 // và đảm bảo groupData đồng bộ với cache thực tế
                 $app_cache_key = md5("app_data_cache_list");
                 $cache_list = Cache::has($app_cache_key) ? Cache::get($app_cache_key) : [];
-                
+
                 foreach ($cache_list as $groupSlug => $flag) {
                     $groupName = "group_" . $groupSlug;
                     $groupCacheKey = md5($groupName);
-                    
+
                     if (!Cache::has($groupCacheKey)) {
                         continue;
                     }
-                    
+
                     $groupData = json_decode(Cache::get($groupCacheKey), true) ?? [];
-                    
+
                     // Tìm và xóa appliedKey khỏi groupData
                     $keyIndex = array_search($appliedKey, $groupData, true);
                     if ($keyIndex !== false) {
                         unset($groupData[$keyIndex]);
                         $groupData = array_values($groupData); // Re-index array
-                        
+
                         if (count($groupData) > 0) {
                             Cache::forever($groupCacheKey, apps_json_encode($groupData));
                         } else {
                             // Nếu group rỗng, xóa luôn group cache key
                             Cache::forget($groupCacheKey);
                         }
-                        
+
                         Log::channel(apps_log_channel("app_cache"))->debug("Removed key from group", [
                             'applied_key' => $appliedKey,
                             'group' => $groupSlug
                         ]);
                     }
                 }
-                
+
                 Log::channel(apps_log_channel("app_cache"))->info("Flushed cached data", [
                     'original_key' => $cacheKey,
                     'applied_key' => $appliedKey,
@@ -2012,14 +2014,14 @@ if (! function_exists('apps_cache_flush')) {
                 // Xóa toàn bộ cache trong group
                 $groupSlug = Str::slug($group);
                 $groupCacheKey = md5("group_" . $groupSlug);
-                
+
                 if (!Cache::has($groupCacheKey)) {
                     // Group chưa được tạo hoặc đã bị xóa - đây là trường hợp bình thường
                     // Không log để tránh spam log khi Observer được trigger nhiều lần
                     // (ví dụ: bulk update ProviderForm sẽ trigger Observer nhiều lần)
                     return;
                 }
-                
+
                 Log::channel(apps_log_channel("app_cache"))->info("Flushing cached data with group: $group", [
                     'group' => $group,
                     'caller' => $caller['method'] ?? 'unknown',
@@ -2027,7 +2029,7 @@ if (! function_exists('apps_cache_flush')) {
                 ]);
 
                 $groupData = json_decode(Cache::get($groupCacheKey), true) ?? [];
-                
+
                 if (blank($groupData) || count($groupData) === 0) {
                     Log::channel(apps_log_channel("app_cache"))->debug("Group data is empty");
                     Cache::forget($groupCacheKey); // Xóa group key ngay cả khi không có data
@@ -2062,7 +2064,7 @@ if (! function_exists('apps_cache_flush')) {
     }
 }
 
-if (! function_exists('apps_cache_reset')) {
+if (!function_exists('apps_cache_reset')) {
     /**
      * Đặt lại toàn bộ cache của ứng dụng bằng cách xóa tất cả các nhóm cache đã lưu.
      *
@@ -2189,7 +2191,7 @@ if (!function_exists('apps_array_get_first_non_empty')) {
     {
         foreach ($keys as $key) {
             $value = Arr::get($array, $key);
-            if (!is_null($value) && trim((string)$value) !== '') {
+            if (!is_null($value) && trim((string) $value) !== '') {
                 return $value;
             }
         }
@@ -2204,7 +2206,8 @@ if (!function_exists('apps_array_get_first_non_empty')) {
 if (!function_exists('apps_array_remove_null')) {
     function apps_array_remove_null($item, bool $resetNumericKeys = true)
     {
-        if (!is_array($item)) return $item;
+        if (!is_array($item))
+            return $item;
 
         $filtered = [];
 
@@ -2370,7 +2373,7 @@ if (!function_exists('apps_leadgen_prepare_data')) {
         $lead = apps_array_remove_null($lead); // remove elements having NULL value from multidimentional array
 
         array_walk_recursive($lead, function (&$arrValue, $arrKey) {
-            if (!blank($arrValue)) :
+            if (!blank($arrValue)):
                 $arrValue = trim($arrValue); // $lead = array_map('trim', $lead); // hàm trim làm giá trị null trở thành ""
             endif;
         });
