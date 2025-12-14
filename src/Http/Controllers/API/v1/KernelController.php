@@ -111,4 +111,10 @@ class KernelController extends BaseController
 
         return response()->json($data, 200);
     }
+
+
+    public function getPlugins(Request $request): JsonResponse
+    {
+        dd(get_active_plugins());
+    }
 }

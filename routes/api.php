@@ -13,7 +13,7 @@ Route::group([
     'namespace' => 'Dev\Api\Http\Controllers',
     'as' => 'kernel.api.v1.'
 ], function () {
-    #region for laravel cms platform only: force update url cho toàn bộ hệ thống mã nguồn cms sau khi triển khai
+    #region Laravel CMS only — force-refresh all system URLs post-deployment
     Route::post('products/check-update', function (): JsonResponse {
         return response()->json([
             'error' => false,
@@ -28,7 +28,7 @@ Route::group([
             'message' => 'The system is already running the latest version. For further assistance, please contact us at toan@visualweber.com or call +84 943 999 819',
         ]);
     })->name('license.check-update');
-    
+
     Route::get('license/verify', function (): JsonResponse {
         return response()->json([
             'error' => false,
@@ -46,11 +46,11 @@ Route::group([
     })->name('license.check');
     #endregion
 });
-#endregion General routes, customize routes. To avoice modification core platform
+#endregion
 
 Route::group([
     'middleware' => ['api'],
-    'prefix'    => 'api/v1',
+    'prefix' => 'api/v1',
     'namespace' => 'Dev\Kernel\Http\Controllers\API\v1',
     'as' => 'kernel.api.v1.'
 ], function () {
@@ -64,6 +64,26 @@ Route::group([
             Route::get('middleware-check', [
                 'as' => '.middleware-check',
                 'uses' => 'KernelController@middlewareCheck',
+            ]);
+        }
+    );
+});
+Route::group([
+    'middleware' => ['api'],
+    'prefix' => 'api/v1',
+    'namespace' => 'Dev\Kernel\Http\Controllers\API\v1',
+    'as' => 'kernel.api.v1.'
+], function () {
+    Route::group(
+        [
+            'prefix' => 'cms',
+            'as' => 'cms'
+        ],
+        function () {
+            // Get and check active plugins
+            Route::get('plugins/get-plugins', [
+                'as' => '.get-plugins',
+                'uses' => 'KernelController@getPlugins',
             ]);
         }
     );

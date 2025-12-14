@@ -16,7 +16,15 @@ use Symfony\Component\HttpFoundation\Response;
 
 #region Begin XML Pre-processing: Removes invalid XML
 if (!function_exists('apps_recursive_sanitize_for_xml')) {
-    // Recursive apps_sanitize_for_xml.
+    /**
+     * Recursively sanitize data structure for XML compatibility.
+     * 
+     * Traverses arrays and objects recursively, applying XML sanitization
+     * to all string values. Skips null, boolean, and numeric values.
+     *
+     * @param mixed $input Input data (passed by reference, modified in place)
+     * @return void
+     */
     function apps_recursive_sanitize_for_xml(&$input)
     {
         if (is_null($input) || is_bool($input) || is_numeric($input)) {
@@ -34,13 +42,15 @@ if (!function_exists('apps_recursive_sanitize_for_xml')) {
 
 if (!function_exists('apps_sanitize_for_xml')) {
     /**
-     * Removes invalid XML
+     * Removes invalid XML characters from a string.
      *
-     * https://stackoverflow.com/questions/3466035/how-to-skip-invalid-characters-in-xml-file-using-php
+     * Converts input to UTF-8 and removes characters that are not valid in XML.
+     * Uses fast preg_replace, with fallback to slower character-by-character conversion.
      *
-     * @access public
-     * @param string $value
-     * @return string
+     * @see https://stackoverflow.com/questions/3466035/how-to-skip-invalid-characters-in-xml-file-using-php
+     *
+     * @param string $input Input string to sanitize
+     * @return string Sanitized string with invalid XML characters removed
      */
     function apps_sanitize_for_xml($input)
     {
@@ -169,6 +179,16 @@ if (!function_exists('apps_utfstring_to_ords')) {
 #endregion
 
 if (!function_exists('apps_get_worksheet_column_titles')) {
+    /**
+     * Extract column titles from the first row of a Google Sheets worksheet.
+     *
+     * Reads row 1 of the worksheet and creates a mapping of normalized keys
+     * to original column titles. Handles duplicate column names by appending
+     * sequence numbers (e.g., "column_2", "column_3").
+     *
+     * @param object $worksheet Google Sheets worksheet object
+     * @return array Associative array mapping normalized keys to original column titles
+     */
     function apps_get_worksheet_column_titles($worksheet)
     {
         $map = array();
@@ -333,19 +353,29 @@ if (!function_exists('apps_build_mapped_values')) {
     }
 }
 if (!function_exists('apps_google_sheet')) {
-
     /**
-     * Google spreadsheet function "apps_google_sheet"
-     * @param array $spreadsheetData
-     * @param array $spreadsheet {"spreadsheet":{"id":"1lFaPiWTQnterK-otcjE0m3v___7AkYA5AbxZCWXEAWQ","name":"[ZALO] TMV - Digimind"},"sheet":{"id":0,"name":"Sheet1"}}
-     * @param string|'oauth2' $credentialsType enum('service_account', 'oauth2)
-     * @param string|null $credentialsFile json credential file
-     * @param array|null $connection Source connection
-     * @param string|null $logger
-     * @param string|null $with_keys Insert with specified Spreadsheet cols name or not
-     * @param array|null  $mappings : using for mapping spreadsheet cols name & leadgen formmeta
-
-     * @return bool|string|null
+     * Append data to a Google Sheets spreadsheet.
+     *
+     * Authenticates with Google Sheets API (OAuth2 or Service Account),
+     * maps data to spreadsheet columns, and appends a new row.
+     * Supports custom field mappings and header caching for performance.
+     *
+     * @param array $spreadsheetData Data to append (key-value pairs)
+     * @param array $spreadsheet Spreadsheet configuration:
+     *                          - spreadsheet.id: Google Sheets ID
+     *                          - spreadsheet.name: Spreadsheet name
+     *                          - sheet.id: Sheet ID (numeric)
+     *                          - sheet.name: Sheet name
+     * @param string $credentialsType Authentication type: 'oauth2' or 'service_account'
+     * @param string|null $credentialsFile Path to service account JSON file (for service_account)
+     * @param array|null $connection Connection data containing OAuth tokens (for oauth2)
+     * @param string $logger Log channel name
+     * @param array $mappings Custom field mappings for spreadsheet columns
+     * @param bool $with_keys If true, match data keys to spreadsheet headers
+     * @param bool $cache_headers Enable caching of spreadsheet headers
+     * @param int $cache_ttl Cache TTL in seconds (default: 300)
+     * @param bool $cache_force_refresh Force refresh of cached headers
+     * @return string JSON-encoded response with success/error status
      * @throws \Throwable
      */
     function apps_google_sheet(
@@ -691,10 +721,19 @@ if (!function_exists('apps_google_sheet')) {
 }
 
 /**
- * {"error":false,"code":200,"statusCode":200,"data":{"workbookId":"1fdSNJLGjJDYq74pw_n4GCiNIYiM7DPf51eeDZRPwY0I","sheetId":0,"sheetName":"Raw","spreadsheetId":"1fdSNJLGjJDYq74pw_n4GCiNIYiM7DPf51eeDZRPwY0I","tableRange":"Raw!A1:J2557","updates":{"spreadsheetId":"1fdSNJLGjJDYq74pw_n4GCiNIYiM7DPf51eeDZRPwY0I","updatedCells":10,"updatedColumns":10,"updatedRange":"Raw!A2558:J2558","updatedRows":1}},"message":"Request has been successfully processed","provider":"leadgen_notification_spreadsheet"}
+ * Update a specific row in Google Sheets based on log data from a previous append operation.
+ *
+ * Extracts spreadsheet ID, sheet name, and row index from the log data,
+ * then updates the corresponding row with new data.
+ *
+ * @param array $rowData New row data to update (array of values)
+ * @param array $log Log data from previous apps_google_sheet() call containing:
+ *                   - data.spreadsheetId: Google Sheets ID
+ *                   - data.sheetName: Sheet name
+ *                   - data.updates.updatedRange: Range string (e.g., "Raw!A2558:J2558")
+ * @return array Result array with 'error', 'message', and 'data' keys
  */
 if (!function_exists('apps_google_sheet_update_by_log')) {
-
     function apps_google_sheet_update_by_log(array $rowData, array $log): array
     {
         $data = data_get($log, 'data');
@@ -754,6 +793,17 @@ if (!function_exists('apps_google_sheet_update_by_log')) {
 }
 
 if (!function_exists('apps_phone_convert')) {
+    /**
+     * Convert phone number to Vietnamese standard format.
+     *
+     * Normalizes phone numbers by:
+     * - Removing all non-numeric characters
+     * - Converting international format (84xxxxxxxxx) to local (0xxxxxxxxx)
+     * - Adding leading zero for 9-digit numbers
+     *
+     * @param string|null $phonenumber Phone number in any format
+     * @return string|false Normalized phone number (0xxxxxxxxx) or false on error
+     */
     function apps_phone_convert($phonenumber)
     {
         if (!$phonenumber)
@@ -776,6 +826,14 @@ if (!function_exists('apps_phone_convert')) {
     }
 }
 if (!function_exists('apps_currency_exchange')) {
+    /**
+     * Get USD to VND exchange rate from VN App Mob API.
+     *
+     * Fetches the current USD sell price from Vietcombank exchange rate API.
+     * Returns a default value of 24500 if the API call fails.
+     *
+     * @return float USD sell price in VND (default: 24500)
+     */
     function apps_currency_exchange()
     {
         try {
@@ -965,7 +1023,18 @@ if (!function_exists('apps_log_stringify')) {
 }
 
 if (!function_exists('apps_pull_login')) {
-
+    /**
+     * Authenticate with Pull API using email and password.
+     *
+     * Makes a login request to the Pull API endpoint and returns
+     * the authentication result. Note: Consider rate limiting for production use.
+     *
+     * @param string $email User email address
+     * @param string $password User password
+     * @param string $method HTTP method (default: 'POST')
+     * @param string $logger Log channel name
+     * @return array Authentication result with 'error' and 'data' keys
+     */
     function apps_pull_login($email, $password, $method = 'POST', $logger = 'daily'): array
     {
         ### @@ quốc em xử lý giùm anh trường hợp gọi login nhiều quá, đơ máy chủ nhé. khi đó giá trị trả ra bị null
@@ -1043,7 +1112,19 @@ if (!function_exists('apps_pull_login')) {
 }
 
 if (!function_exists('apps_vtiger_login')) {
-
+    /**
+     * Authenticate with Vtiger CRM using challenge-response mechanism.
+     *
+     * Implements Vtiger's two-step authentication:
+     * 1. Get challenge token from server
+     * 2. Login with MD5 hash of (challenge_token + accessKey)
+     *
+     * @param string $username Vtiger username
+     * @param string $accessKey Vtiger access key
+     * @param string $method HTTP method (default: 'POST')
+     * @param string $logger Log channel name
+     * @return array Authentication result with 'error' and 'data' keys
+     */
     function apps_vtiger_login($username, $accessKey, $method = 'POST', $logger = 'daily')
     {
         // Log::channel($logger)->info("==========> " . __FUNCTION__ . " helper is running");
@@ -1158,7 +1239,18 @@ if (!function_exists('apps_vtiger_login')) {
 }
 
 if (!function_exists('apps_toyota_crm_login')) {
-
+    /**
+     * Authenticate with Toyota CRM API.
+     *
+     * Makes a login request to Toyota's authentication endpoint with
+     * tenant ID header (Abp.TenantId: 1005).
+     *
+     * @param string $username Toyota CRM username or email
+     * @param string $password User password
+     * @param string $method HTTP method (default: 'POST')
+     * @param string $logger Log channel name
+     * @return array Authentication result with 'error' and 'data' keys
+     */
     function apps_toyota_crm_login($username, $password, $method = 'POST', $logger = 'daily')
     {
         try {
@@ -1239,7 +1331,17 @@ if (!function_exists('apps_toyota_crm_login')) {
 }
 
 if (!function_exists('apps_mmv_crm_login')) {
-
+    /**
+     * Authenticate with Mitsubishi Motors Vietnam (MMV) CRM API.
+     *
+     * Makes a login request to MMV CRM endpoint using form-encoded data.
+     *
+     * @param string $username MMV CRM username (default: 'mmv_tsp')
+     * @param string $password User password (default: 'Ci8p2P3B')
+     * @param string $method HTTP method (default: 'POST')
+     * @param string $logger Log channel name
+     * @return array Authentication result with 'error' and 'data' keys
+     */
     function apps_mmv_crm_login($username = 'mmv_tsp', $password = 'Ci8p2P3B', $method = 'POST', $logger = 'daily'): array
     {
         try {
@@ -1317,14 +1419,16 @@ if (!function_exists('apps_mmv_crm_login')) {
 }
 
 if (!function_exists('apps_scan_folder')) {
-
     /**
+     * Scan a directory and return file/folder names, excluding ignored patterns.
      *
-     * @param
-     *            $path
-     * @param array $ignore_files
-     * @return array
-     * @author Anonymous Developer Department
+     * Scans the specified directory and returns an array of file/folder names,
+     * excluding entries that match ignore patterns. Automatically ignores
+     * hidden files (starting with '.') and .DS_Store files.
+     *
+     * @param string $dir Directory path to scan
+     * @param array $ignore_files Array of regex patterns to ignore (merged with default patterns)
+     * @return array Sorted array of file/folder names, or empty array on error
      */
     function apps_scan_folder($dir, $ignore_files = [])
     {
@@ -1345,13 +1449,15 @@ if (!function_exists('apps_scan_folder')) {
     }
 }
 
-/**
- * Check if a given string is a valid UUID
- *
- * @param   string  $uuid   The string to check
- * @return  boolean
- */
 if (!function_exists('apps_check_valid_uuid')) {
+    /**
+     * Check if a given string is a valid UUID v4.
+     *
+     * Validates UUID format: 8-4-4-4-12 hexadecimal digits with version 4 indicator.
+     *
+     * @param string $uuid The string to check
+     * @return bool True if valid UUID v4, false otherwise
+     */
     function apps_check_valid_uuid($uuid)
     {
         if (!is_string($uuid) || (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/', $uuid) !== 1)) {
@@ -1362,7 +1468,19 @@ if (!function_exists('apps_check_valid_uuid')) {
 }
 
 if (!function_exists('apps_apollo_crm_login')) {
-
+    /**
+     * Authenticate with Apollo CRM API using Sogo access token.
+     *
+     * Makes a login request to Apollo CRM endpoint with Sogo access token
+     * in the X-Sogo-Access-Token header.
+     *
+     * @param string $username Apollo CRM username
+     * @param string $password User password
+     * @param string $sogoAccessToken Sogo access token for authentication
+     * @param string $method HTTP method (default: 'POST')
+     * @param string $logger Log channel name
+     * @return array Authentication result with 'error' and 'data' keys
+     */
     function apps_apollo_crm_login($username, $password, $sogoAccessToken, $method = 'POST', $logger = 'daily')
     {
         try {
@@ -1440,21 +1558,20 @@ if (!function_exists('apps_apollo_crm_login')) {
         return $result;
     }
 }
-/**
- * Convert JSON data to array, adding new value before store to database
- *
- * @param   array|string|null $original JSON | ARRAY
- * @param   mixed  $value
- * @param   int|string|null  $key
- * @return  array , sử dụng casts trong model để xử lý json data, tránh sử dụng json_decode/json_encode
- */
 if (!function_exists('apps_json_to_database')) {
     /**
-     * @param array|string|null $original
-     * @param mixed $value
-     * @param ?string $key
-     * @param bool $override
-     * @return array
+     * Convert JSON data to array and add/update a value before storing to database.
+     *
+     * Converts JSON string to array if needed, then adds or updates a value
+     * at the specified key path. Supports nested keys using dot notation.
+     *
+     * Note: Prefer using model casts for JSON columns instead of manual json_decode/json_encode.
+     *
+     * @param array|string|null $original Original data (JSON string or array)
+     * @param mixed $value Value to add/update
+     * @param string|null $key Key path (supports dot notation, e.g., 'notifications.webhook')
+     * @param bool $override If true, overwrite existing value; if false, merge with existing
+     * @return array Updated array
      */
     function apps_json_to_database(array|string|null $original, $value, $key = null, $override = true): array
     {
@@ -1491,11 +1608,19 @@ if (!function_exists('apps_json_to_database')) {
     }
 }
 
-/**
- * Usage: apps_province_detection('(Thanh Hoá) ĐL Thanh Hoá_TTH')
- * Return "Thanh Hoá"
- */
 if (!function_exists('apps_province_detection')) {
+    /**
+     * Detect Vietnamese province name from a string.
+     *
+     * Normalizes the input string and matches it against a list of Vietnamese provinces.
+     * Returns the full province name if a match is found.
+     *
+     * @example
+     * apps_province_detection('(Thanh Hoá) ĐL Thanh Hoá_TTH') // Returns "Thanh Hóa"
+     *
+     * @param string $term Input string containing province name
+     * @return string Full province name or empty string if not found
+     */
     function apps_province_detection($term): string
     {
         $term = Str::slug(trim($term), '');
@@ -1507,11 +1632,20 @@ if (!function_exists('apps_province_detection')) {
         return $filtered->first(); // return An Giang for example
     }
 }
-/**
- * Usage: apps_get_provinces_districts_rawdata('Thanh Hoá')
- * Return all provinces with its districts or just return districts belong to a specific province
- */
 if (!function_exists('apps_get_provinces_districts_rawdata')) {
+    /**
+     * Get Vietnamese provinces with their districts, or districts for a specific province.
+     *
+     * Returns a comprehensive list of all Vietnamese provinces with their districts,
+     * or filters to return only districts for a specific province if $term is provided.
+     *
+     * @example
+     * apps_get_provinces_districts_rawdata('Thanh Hoá') // Returns districts of Thanh Hóa
+     * apps_get_provinces_districts_rawdata() // Returns all provinces with districts
+     *
+     * @param string|null $term Province name to filter (optional)
+     * @return array Associative array of provinces => districts, or districts array if $term provided
+     */
     function apps_get_provinces_districts_rawdata($term = null): array
     {
         $term = Str::slug(trim($term), '');
@@ -1597,6 +1731,16 @@ if (!function_exists('apps_get_provinces_districts_rawdata')) {
 }
 
 if (!function_exists('apps_facebook_parse_signed_request')) {
+    /**
+     * Parse and verify a Facebook signed request.
+     *
+     * Decodes a Facebook signed request and verifies its signature using HMAC-SHA256.
+     * Returns the decoded payload if signature is valid, null otherwise.
+     *
+     * @param string $signed_request Facebook signed request string (format: encoded_sig.payload)
+     * @param string $logger Log channel name
+     * @return array|null Decoded payload data or null if signature is invalid
+     */
     function apps_facebook_parse_signed_request($signed_request, $logger = 'daily')
     {
         list($encoded_sig, $payload) = explode('.', $signed_request, 2);
@@ -1619,17 +1763,33 @@ if (!function_exists('apps_facebook_parse_signed_request')) {
     }
 }
 if (!function_exists('apps_facebook_base64_url_decode')) {
+    /**
+     * Decode Facebook's URL-safe base64 encoding.
+     *
+     * Converts URL-safe base64 characters (- and _) to standard base64 characters (+ and /).
+     *
+     * @param string $input URL-safe base64 encoded string
+     * @return string Decoded string
+     */
     function apps_facebook_base64_url_decode($input)
     {
         return base64_decode(strtr($input, '-_', '+/'));
     }
 }
 
-/**
- * Send a message via Telegram w/ default configs
- *
- */
 if (!function_exists('apps_telegram_send_message')) {
+    /**
+     * Send a message via Telegram with default configurations.
+     *
+     * Sends a message to a Telegram channel using the configured bot token.
+     * Only works in production environment. Supports HTML formatting and custom options.
+     *
+     * @param string|array $message Message text or array of lines
+     * @param string $channel Telegram bot channel name (default: 'pull')
+     * @param string $logger Log channel name
+     * @param array $configs Additional Telegram API options to override defaults
+     * @return void
+     */
     function apps_telegram_send_message(
         $message,
         $channel = 'pull',
@@ -1682,6 +1842,17 @@ if (!function_exists('apps_telegram_send_message')) {
 }
 
 if (!function_exists('apps_phone_extraction')) {
+    /**
+     * Extract phone number from a string using regex pattern.
+     *
+     * Normalizes the input string and extracts the first phone number
+     * matching the specified pattern. Default pattern supports international
+     * and local formats with various separators.
+     *
+     * @param string $str Input string containing phone number
+     * @param string $pattern Regex pattern for phone number matching
+     * @return string|null Extracted phone number or null if not found
+     */
     function apps_phone_extraction($str, $pattern = '/(\+\d{1,2})?\s?\(?\d{1,4}\)?[\s.-]?\d{3}[\s.-]?\d{4}/')
     {
         $str = Str::slug($str, '');
@@ -2122,6 +2293,15 @@ if (!function_exists('apps_cache_debug')) {
 #endregion
 
 if (!function_exists('apps_is_valid_timestamp')) {
+    /**
+     * Check if a value is a valid Unix timestamp.
+     *
+     * Validates that the value is a numeric string representing an integer
+     * within PHP's integer range limits.
+     *
+     * @param mixed $timestamp Value to check
+     * @return bool True if valid timestamp, false otherwise
+     */
     function apps_is_valid_timestamp($timestamp)
     {
         return ((string) (int) $timestamp === $timestamp)
@@ -2130,17 +2310,20 @@ if (!function_exists('apps_is_valid_timestamp')) {
     }
 }
 
-/**
- *{
- *    "name": "Hành Trình Tôi Chọn",
- *    "url": "https://hanhtrinhtoichon.com/mimi-chatbot/",
- *    "status": "Hoạt động tốt"
- *}
- * 
- * @param bool pretty = true sẽ return mã json nhiều dòng, ngược lại trả ra mã json trên 1 dòng
- * @param bool withEol = true sẽ thêm ký tự xuống hàng
- */
 if (!function_exists('apps_json_encode')) {
+    /**
+     * Encode data to JSON string with enhanced options.
+     *
+     * Provides JSON encoding with Unicode and slash preservation, optional
+     * pretty printing, and error handling. By default throws exceptions on errors.
+     *
+     * @param array|object|null $data Data to encode
+     * @param bool $pretty If true, format JSON with indentation (multi-line)
+     * @param bool $withEol If true, append newline character at the end
+     * @param bool $throwOnError If true, throw exception on encoding failure
+     * @return string JSON-encoded string
+     * @throws \JsonException When encoding fails and $throwOnError is true
+     */
     function apps_json_encode(
         array|object|null $data,
         bool $pretty = false,
@@ -2168,6 +2351,15 @@ if (!function_exists('apps_json_encode')) {
 }
 
 if (!function_exists('apps_num2alpha')) {
+    /**
+     * Convert a numeric index to Excel-style column letter (A, B, C, ..., Z, AA, AB, ...).
+     *
+     * Converts a zero-based numeric index to corresponding column letter(s)
+     * as used in spreadsheet applications (e.g., 0 → A, 25 → Z, 26 → AA).
+     *
+     * @param int $n Zero-based numeric index
+     * @return string Column letter(s) (e.g., 'A', 'Z', 'AA', 'AB')
+     */
     function apps_num2alpha($n)
     {
         $r = '';
@@ -2199,11 +2391,21 @@ if (!function_exists('apps_array_get_first_non_empty')) {
     }
 }
 
-/**
- * sử dụng hàm này trước khi gọi helper Arr::get để tránh lỗi khi gặp key tồn tại nhưng value null.
- * To remove the null values but not the empty arrays
- */
 if (!function_exists('apps_array_remove_null')) {
+    /**
+     * Recursively remove null and empty values from an array.
+     *
+     * Removes null, empty strings, and empty arrays from the data structure.
+     * Preserves empty arrays if they are part of the structure (only removes
+     * values, not empty array containers). Optionally resets numeric keys.
+     *
+     * Use this function before calling Arr::get to avoid errors when encountering
+     * keys that exist but have null values.
+     *
+     * @param mixed $item Input data (array or scalar)
+     * @param bool $resetNumericKeys If true, re-index numeric arrays after filtering
+     * @return mixed Filtered data with null/empty values removed
+     */
     function apps_array_remove_null($item, bool $resetNumericKeys = true)
     {
         if (!is_array($item))
@@ -2298,6 +2500,15 @@ if (!function_exists('apps_extract_additional_data')) {
 }
 
 if (!function_exists('apps_as_array')) {
+    /**
+     * Ensure a value is an array, converting non-arrays to empty array.
+     *
+     * Type-safe helper to guarantee array type. Returns the value if it's
+     * already an array, otherwise returns an empty array.
+     *
+     * @param mixed $value Value to convert
+     * @return array Original array or empty array
+     */
     function apps_as_array($value): array
     {
         return is_array($value) ? $value : [];
@@ -2365,6 +2576,22 @@ if (!function_exists('apps_get_image_url_webp')) {
 }
 
 if (!function_exists('apps_leadgen_prepare_data')) {
+    /**
+     * Prepare and normalize lead generation data for database storage.
+     *
+     * Performs comprehensive data normalization including:
+     * - Removing null/empty values
+     * - Trimming all string values
+     * - Converting keys to lowercase with underscores
+     * - Mapping custom fields using provided mappings
+     * - Standardizing common fields (phone, email, name, address, etc.)
+     * - Extracting province/city/district from various input formats
+     *
+     * @param array $lead Raw lead data from form/webhook
+     * @param array|null $mappings Custom field mappings for database columns
+     * @param string $logger Log channel name
+     * @return array Normalized lead data ready for database insertion
+     */
     function apps_leadgen_prepare_data($lead, $mappings = null, $logger = 'daily')
     {
         Log::channel($logger)->info("==========> " . __FUNCTION__ . " helper is running");
