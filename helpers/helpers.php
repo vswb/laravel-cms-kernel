@@ -989,8 +989,37 @@ if (!function_exists('apps_log_stringify')) {
     /**
      * Chuyển giá trị bất kỳ thành chuỗi an toàn để log
      *
-     * @param mixed $value
-     * @return string
+     * Hỗ trợ chuyển đổi các kiểu dữ liệu: string, scalar (int, float, bool), null,
+     * array, object (có/không có __toString), và các kiểu không thể log.
+     *
+     * @param mixed $value Giá trị cần chuyển đổi
+     * @return string Chuỗi an toàn để log
+     *
+     * @example
+     * // String - trả về nguyên bản
+     * apps_log_stringify('Hello World'); // 'Hello World'
+     *
+     * // Scalar values - chuyển sang string
+     * apps_log_stringify(123); // '123'
+     * apps_log_stringify(45.67); // '45.67'
+     * apps_log_stringify(true); // '1'
+     * apps_log_stringify(null); // ''
+     *
+     * // Array - chuyển sang JSON
+     * apps_log_stringify(['name' => 'John', 'age' => 30]);
+     * // '{"name":"John","age":30}'
+     *
+     * // Object có __toString
+     * $date = new \DateTime('2024-01-01');
+     * apps_log_stringify($date); // '2024-01-01 00:00:00'
+     *
+     * // Object không có __toString - chuyển sang JSON hoặc class name
+     * $user = new stdClass();
+     * $user->name = 'John';
+     * apps_log_stringify($user); // '{"name":"John"}' hoặc 'Object(stdClass)'
+     *
+     * // Sử dụng với Log
+     * Log::channel('daily')->info('User data: ' . apps_log_stringify($userData));
      */
     function apps_log_stringify(mixed $value): string
     {
