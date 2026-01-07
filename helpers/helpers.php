@@ -226,14 +226,14 @@ if (!function_exists('apps_build_mapped_values')) {
     /**
      * Build mapped values from spreadsheet based on custom mappings.
      *
-     * @param  array   $data                Dữ liệu đầu vào, đã parse thành mảng key => value
-     * @param  array   $mappings            Cấu hình mappings từ người dùng
-     * @param  string  $logger              Tên channel log
-     * @param  string  $mode                Chế độ gộp:
-     *                                     - 'coalesce' (mặc định): lấy giá trị đầu tiên không rỗng
-     *                                     - 'concat': nối tất cả giá trị (unique + giữ thứ tự)
-     * @param  bool    $removeEmptyValues   Nếu TRUE → bỏ các key có giá trị null hoặc rỗng
-     * @return array                        Mảng key => value sau khi mapping
+     * @param  array   $data                Input data, parsed into key => value array
+     * @param  array   $mappings            User mapping configuration
+     * @param  string  $logger              Log channel name
+     * @param  string  $mode                Merge mode:
+     *                                     - 'coalesce' (default): get first non-empty value
+     *                                     - 'concat': concatenate all values (unique + preserve order)
+     * @param  bool    $removeEmptyValues   If TRUE → remove keys with null or empty values
+     * @return array                        Array of key => value after mapping
      *
      * @example
      *      // ===== INPUT DATA =====
@@ -533,7 +533,7 @@ if (!function_exists('apps_google_sheet')) {
                     // else Log::channel($logger)->info('[GSheet Cache::Miss]', ['cache_key' => $cacheKey]);
 
                     /**
-                     * nếu cache HIT => remember sẽ tự động return cached data nếu có, không thì sẽ chạy vào callback và store data vào cache
+                     * if cache HIT => remember will automatically return cached data if available, otherwise will run callback and store data in cache
                      */
                     $headers = Cache::remember($cacheKey, $cache_ttl, function () use ($accessToken, $spreadsheet, $logger, $cacheKey, $cache_ttl) {
                         // Log::channel($logger)->info('[GSheet Cache::Rebuilding headers]', [
@@ -1966,24 +1966,24 @@ if (!function_exists('apps_cache_get_key')) {
 
 if (!function_exists('apps_cache_store')) {
     /**
-     * Lưu dữ liệu vào cache với khả năng nhóm theo group để dễ dàng quản lý và xóa theo nhóm.
+     * Save data to cache with ability to group by group for easy management and group-wise deletion.
      *
      * 🎯 OPTIMIZATION: Nếu đã có $appliedKey từ apps_cache_get_key(), truyền vào để tránh gọi lại.
      *
-     * @param string $key    Khóa cache duy nhất (có thể là appliedKey hoặc key gốc).
-     * @param mixed  $data   Dữ liệu cần lưu vào cache.
-     * @param int    $time   Thời gian hết hạn của cache (tính bằng giây, mặc định 1 giờ).
-     * @param string|null $group Tên nhóm cache để hỗ trợ xóa theo nhóm (tuỳ chọn).
-     * @param bool $isAppliedKey Nếu true, $key đã là appliedKey rồi, không cần gọi apps_cache_get_key().
+     * @param string $key    Unique cache key (can be appliedKey or original key).
+     * @param mixed  $data   Data to save to cache.
+     * @param int    $time   Cache expiration time (in seconds, default 1 hour).
+     * @param string|null $group Cache group name to support group-wise deletion (optional).
+     * @param bool $isAppliedKey If true, $key is already appliedKey, no need to call apps_cache_get_key().
      *
      * @example
-     * // Cách 1: Truyền key gốc (gọi apps_cache_get_key)
+     * // Way 1: Pass original key (calls apps_cache_get_key)
      * apps_cache_store('user_123', $userData, 3600, 'users');
      * 
-     * // Cách 2: Truyền appliedKey đã có (OPTIMAL - tránh gọi apps_cache_get_key 2 lần)
+     * // Way 2: Pass appliedKey already obtained (OPTIMAL - avoid calling apps_cache_get_key twice)
      * $appliedKey = apps_cache_get_key('user_123', 'users');
      * // ... check cache ...
-     * apps_cache_store($appliedKey, $userData, 3600, 'users', true); // ⚠️ VẪN PHẢI TRUYỀN GROUP!
+     * apps_cache_store($appliedKey, $userData, 3600, 'users', true); // ⚠️ STILL NEED TO PASS GROUP!
      * 
      * @return void
      */
@@ -2282,9 +2282,9 @@ if (!function_exists('apps_cache_reset')) {
             $cache_list = Cache::has($app_cache_key) ? Cache::get($app_cache_key) : []; // Get list of groups
             foreach ($cache_list as $key => $flag) {
                 Log::channel(apps_log_channel("app_cache"))->info("- Delete cache group " . $key);
-                apps_cache_flush(null, $key); // Lọc từng group và xoá hết các cachekey trong nó
+                apps_cache_flush(null, $key); // Filter each group and delete all cache keys in it
             }
-            Cache::forget($app_cache_key); // Xoá luôn tệp quản lí cache
+            Cache::forget($app_cache_key); // Delete cache management file
         } catch (\Throwable $th) {
             Log::channel(apps_log_channel("app_cache"))->error("Reset cache data error");
             Log::channel(apps_log_channel("app_cache"))->error($th->getMessage());
@@ -2402,10 +2402,10 @@ if (!function_exists('apps_num2alpha')) {
 
 if (!function_exists('apps_array_get_first_non_empty')) {
     /**
-     * Lấy giá trị của key đầu tiên có giá trị không rỗng trong mảng.
-     * @param array $array Mảng nguồn
-     * @param array $keys Danh sách key theo thứ tự ưu tiên
-     * @param mixed $default Giá trị trả về nếu không có key nào hợp lệ
+     * Get value of the first key with non-empty value in the array.
+     * @param array $array Source array
+     * @param array $keys List of keys in priority order
+     * @param mixed $default Return value if no valid key found
      * @return mixed
      */
     function apps_array_get_first_non_empty(array $array, array $keys, $default = null)
@@ -2451,25 +2451,25 @@ if (!function_exists('apps_array_remove_null')) {
                 continue;
             }
 
-            $filtered[$key] = $value; // luôn giữ $key => $value
+            $filtered[$key] = $value; // always keep $key => $value
         }
 
         return $resetNumericKeys && array_is_list($filtered)
             ? array_values($filtered)
-            : $filtered; // reset lại key nếu mảng số và flag được bật
+            : $filtered; // reset key if numeric array and flag enabled
     }
 }
 
 if (!function_exists('apps_extract_additional_data')) {
     /**
-     * Chuẩn hóa dữ liệu bổ sung (additional_data) trước khi lưu vào DB.
-     * - Chỉ giữ lại các field không có trong schema của bảng.
-     * - Hỗ trợ cache schema để giảm query.
+     * Normalize additional data before saving to DB.
+     * - Keep only fields not in table schema.
+     * - Support schema caching to reduce queries.
      *
-     * @param  array   $data    Dữ liệu nguồn (tham chiếu & cập nhật trực tiếp).
-     * @param  string  $schema  Tên bảng (mặc định: leads).
-     * @param  mixed   $additionalDataIgnore Các field không cần lưu vào additional_data
-     * @return array   Mảng dữ liệu bổ sung (đã chuẩn hóa).
+     * @param  array   $data    Source data (reference & update directly).
+     * @param  string  $schema  Table name (default: leads).
+     * @param  mixed   $additionalDataIgnore Fields not needed in additional_data
+     * @return array   Array of additional data (normalized).
      */
     function apps_extract_additional_data(
         array $data,
@@ -2497,7 +2497,7 @@ if (!function_exists('apps_extract_additional_data')) {
             'additional_data',
             'leadgen_notification',
             'leadgen_notification_spreadsheet'
-        ]; // gán data mặc định nếu không truyền
+        ]; // assign default data if not passed
 
         // Get list of columns from cache or DB
         $cacheKey = "schema_$schema";
@@ -2546,25 +2546,25 @@ if (!function_exists('apps_as_array')) {
 
 if (!function_exists('apps_get_image_url_webp')) {
     /**
-     * Trả về URL phiên bản WebP của ảnh nếu file .webp tương ứng tồn tại trên máy chủ.
+     * Return WebP version URL of image if corresponding .webp file exists on server.
      *
-     * Cách hoạt động:
-     * - Chỉ áp dụng cho ảnh có phần mở rộng: jpg|jpeg|png.
-     * - Phân tích URL để lấy path (bỏ query/fragment), tạo path .webp tương ứng với ảnh gốc.
-     * - Kiểm tra sự tồn tại của file .webp trong thư mục public (public_path).
-     * - Nếu tồn tại: trả về URL .webp nhưng giữ nguyên query/fragment gốc (nếu có).
-     * - Nếu không tồn tại: trả về URL ảnh gốc.
+     * How it works:
+     * - Only applies to images with extensions: jpg|jpeg|png.
+     * - Parse URL to get path (exclude query/fragment), create .webp path corresponding to original image.
+     * - Check existence of .webp file in public directory (public_path).
+     * - If exists: return .webp URL but keep original query/fragment (if any).
+     * - If not exists: return original image URL.
      *
-     * Tối ưu hiệu năng:
-     * - Dùng memoization theo originalUrl để tránh lặp lại thao tác I/O (File::exists) trong cùng lifecycle request.
+     * Performance optimization:
+     * - Use memoization by originalUrl to avoid repeating I/O operations (File::exists) in same request lifecycle.
      *
-     * Lưu ý:
-     * - Hàm không chuyển đổi ảnh sang WebP, chỉ kiểm tra sự tồn tại file .webp sẵn có.
-     * - Nếu URL rỗng hoặc không có path hợp lệ → trả null/URL gốc tương ứng.
-     * - Hành vi phụ thuộc mapping giữa URL và public_path. Cần cấu hình đồng nhất URL tĩnh ↔ thư mục public.
+     * Note:
+     * - Function does not convert image to WebP, only checks existence of existing .webp file.
+     * - If URL is empty or has no valid path → return null/corresponding original URL.
+     * - Behavior depends on mapping between URL and public_path. Need unified configuration for static URL ↔ public directory.
      *
-     * @param string $originalUrl URL ảnh gốc (có thể kèm query/fragment)
-     * @return string|null URL .webp nếu có, ngược lại URL gốc; null khi tham số rỗng
+     * @param string $originalUrl Original image URL (may include query/fragment)
+     * @return string|null URL .webp if exists, otherwise original URL; null when parameter empty
      */
     function apps_get_image_url_webp($originalUrl): string|null
     {
@@ -2578,7 +2578,7 @@ if (!function_exists('apps_get_image_url_webp')) {
             return $memo[$originalUrl];
         }
 
-        // Lấy path an toàn từ URL (bỏ query/fragment), tránh File::extension trên full URL
+        // Get safe path from URL (exclude query/fragment), avoid File::extension on full URL
         $path = (string) (parse_url($originalUrl, PHP_URL_PATH) ?? '');
         if ($path === '') {
             return $memo[$originalUrl] = $originalUrl;
@@ -2589,7 +2589,7 @@ if (!function_exists('apps_get_image_url_webp')) {
             return $memo[$originalUrl] = $originalUrl;
         }
 
-        // Tạo đường dẫn .webp tương ứng theo path, giữ nguyên domain/query của URL gốc khi trả về
+        // Create corresponding .webp path by path, keep original domain/query of URL when returning
         $webpPath = substr($path, 0, -strlen($ext)) . 'webp';
         $filePath = public_path(ltrim($webpPath, '/'));
 
@@ -2597,7 +2597,7 @@ if (!function_exists('apps_get_image_url_webp')) {
             return $memo[$originalUrl] = $originalUrl;
         }
 
-        // Thay phần mở rộng ở URL gốc (chỉ ở cuối), giữ nguyên query/fragment
+        // Replace extension in original URL (only at end), keep original query/fragment
         $webpUrl = preg_replace('/\.' . preg_quote($ext, '/') . '(\?.*)?$/i', '.webp$1', $originalUrl);
 
         return $memo[$originalUrl] = ($webpUrl ?: $originalUrl);
@@ -2630,7 +2630,7 @@ if (!function_exists('apps_leadgen_prepare_data')) {
 
         array_walk_recursive($lead, function (&$arrValue, $arrKey) {
             if (!blank($arrValue)):
-                $arrValue = trim($arrValue); // $lead = array_map('trim', $lead); // hàm trim làm giá trị null trở thành ""
+                $arrValue = trim($arrValue); // $lead = array_map('trim', $lead); // trim function converts null value to ""
             endif;
         });
         $origin = collect($lead)->toArray();
@@ -2686,7 +2686,7 @@ if (!function_exists('apps_leadgen_prepare_data')) {
         #endregion
 
         $lead['dealer'] = apps_array_get_first_non_empty($lead, [
-            'dealer',      // ưu tiên giữ key gốc cho toyota_crm
+            'dealer',      // prioritize keeping original key for toyota_crm
             'showroom'
         ], null);
 
@@ -2741,8 +2741,8 @@ if (!function_exists('apps_leadgen_prepare_data')) {
             'client_name',
             'customer_name',
             'ten_day_du',
-            'phone',   // sử dụng phone nếu name null, cần đặt cuối điều kiện
-            'email'    // sử dụng email nếu name null, cần đặt cuối điều kiện
+            'phone',   // use phone if name is null, must place at end of condition
+            'email'    // use email if name is null, must place at end of condition
         ], null);
         $lead['model'] = $lead['dong_xe'] = $data['mau_xe_ma_ban_quan_tam'] = $lead['dong_xe_quan_tam'] = $lead['dong_xe_ban_quan_tam'] = apps_array_get_first_non_empty($lead, [
             'model',
@@ -2779,7 +2779,7 @@ if (!function_exists('apps_leadgen_prepare_data')) {
                 'dai_ly',
             ], null),
             100
-        ); // limit 100 characters, khi người dùng nhập quá nhiều;
+        ); // limit 100 characters, when user enters too much;
         // if (blank($lead['city']) and !blank($lead['dealer'])) {
         //     preg_match('#\((.*?)\)#', $lead['dealer'], $provinceArr); // extract string from (Bắc Ninh) ĐL Bắc Ninh_TBN
         //     if (!blank($provinceArr)) {
