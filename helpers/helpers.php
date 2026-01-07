@@ -1606,10 +1606,10 @@ if (!function_exists('apps_json_to_database')) {
     {
         if (is_string($original)) { // '{}'
             try {
-                $original = json_decode(blank($original) ? '{}' : $original, true, 512, JSON_THROW_ON_ERROR); // hoặc nếu chắc chắn json ổn định: $original = json_decode(blank($original) ? '{}' : $original, true);
+                $original = json_decode(blank($original) ? '{}' : $original, true, 512, JSON_THROW_ON_ERROR); // or if sure json is stable: $original = json_decode(blank($original) ? '{}' : $original, true);
             } catch (\JsonException $e) {
                 Log::error('[apps_json_to_database] JSON decode failed', ['input' => $original, 'error' => $e->getMessage()]);
-                $original = []; // fallback an toàn
+                $original = []; // safe fallback
             }
         }
         $original = (array) $original;
@@ -1854,7 +1854,7 @@ if (!function_exists('apps_telegram_send_message')) {
             // Log::channel($logger)->info("configs", $configs);
             // Log::channel($logger)->info("telegramDfOptions", $telegramDfOptions);
 
-            $telegramDfOptions['text'] = \Illuminate\Support\Str::limit( // có thể sử dụng facades app('url) nhưng không sử dụng được helper str() lúc này, có thể vì chưa load
+            $telegramDfOptions['text'] = \Illuminate\Support\Str::limit( // Can use facades app('url) but helper str() not available right now, possibly because not loaded
                 is_array($message) ?
                 implode("\n", $message) : $message,
                 4096
@@ -1996,7 +1996,7 @@ if (!function_exists('apps_cache_store')) {
     ): string|null {
         try {
             if ($isAppliedKey) {
-                // Nếu đã có appliedKey, chỉ cần store data
+                // If appliedKey already exists, just store data
                 $cacheKey = $key;
 
                 // If group exists, still need to register appliedKey in groupData
@@ -2499,14 +2499,14 @@ if (!function_exists('apps_extract_additional_data')) {
             'leadgen_notification_spreadsheet'
         ]; // gán data mặc định nếu không truyền
 
-        // lấy danh sách cột từ cache hoặc DB
+        // Get list of columns from cache or DB
         $cacheKey = "schema_$schema";
         $cols = Cache::remember($cacheKey, 60 * 60 * 24, function () use ($schema) {
             return DB::connection()->getSchemaBuilder()->getColumnListing($schema);
         });
 
         $additionalData = [];
-        // phân tích và thu thập dữ liệu bổ sung, có 3 cách xử lý: array_walk, foreach hoặc laravel (Collection + reject)
+        // Analyze and collect additional data, 3 processing methods: array_walk, foreach or laravel (Collection + reject)
         // C1: $additionalData = collect($data)
         //     ->reject(fn($value, $key) => in_array($key, $cols, true) || in_array($key, $additionalDataIgnore, true))
         //     ->toArray();
