@@ -282,7 +282,7 @@ if (!function_exists('apps_build_mapped_values')) {
         $values_mappings = [];
 
         foreach ($mappings as $mapping_key => $_mappings) {
-            /* reset giá trị trước mỗi vòng lặp để tránh dính data cũ */
+            /* reset value before each loop to avoid data contamination */
             $values_mappings[$mapping_key] = null;
             $bucket = [];
             Log::channel($logger)->info('mapping_key', (array) $mapping_key);
@@ -291,11 +291,11 @@ if (!function_exists('apps_build_mapped_values')) {
                 if (!isset($__mapping['key']))
                     continue;
 
-                /* tách theo '|' TRƯỚC, rồi mới slug (fix bug thứ tự cũ) */
+                /* split by '|' FIRST, then slug (fix old order bug) */
                 /**
-                 * chú ý: tên cột của spreadsheet không chấp nhận dấu _ và bất kỳ ký tự ngoài các chữ alphabet
-                 * ví dụ: "1009385287145182|số_điện_thoại" hoặc "số_điện_thoại" hoặc "sđt_của_cha_mẹ:"
-                 * tách theo '|' TRƯỚC, rồi mới slug (fix bug thứ tự cũ)
+                 * note: spreadsheet column names do not accept _ and any characters outside alphabet
+                 * example: "1009385287145182|phone_number" or "phone_number" or "parent_phone:"
+                 * split by '|' FIRST, then slug (fix old order bug)
                  */
                 $parts = explode('|', (string) $__mapping['key'], 2);
                 $rawKey = $parts[1] ?? $parts[0];
@@ -304,11 +304,11 @@ if (!function_exists('apps_build_mapped_values')) {
                 $__mapping_key = Str::slug(Str::ascii($rawKey), '');
                 Log::channel($logger)->info('__mapping_key slug', (array) $__mapping_key);
 
-                /* lấy giá trị từ input */
+                /* get value from input */
                 $raw = Arr::get($data, $__mapping_key);
                 Log::channel($logger)->info('__raw value', (array) $raw);
 
-                /* chuẩn hóa value: trim, bỏ rỗng, hỗ trợ mảng */
+                /* normalize value: trim, remove empty, support arrays */
                 if (is_array($raw)) {
                     $raw = implode(' ', array_map('trim', array_filter($raw, fn($v) => !blank($v))));
                 } else {
@@ -387,9 +387,9 @@ if (!function_exists('apps_google_sheet')) {
         $logger = 'daily',
         $mappings = [],
         $with_keys = true,
-        $cache_headers = true, // cho phép bật/tắt cache
-        $cache_ttl = 300,      // TTL mặc định: 300s (5 phút)
-        $cache_force_refresh = false // cho phép bỏ qua cache
+        $cache_headers = true, // allow enable/disable cache
+        $cache_ttl = 300,      // default TTL: 300s (5 minutes)
+        $cache_force_refresh = false // allow bypass cache
     ) {
         try {
             Log::channel($logger)->info("==========> " . __FUNCTION__ . " helper is running");
@@ -449,7 +449,7 @@ if (!function_exists('apps_google_sheet')) {
                     $client->setScopes([
                         'https://www.googleapis.com/auth/spreadsheets',
                         'https://www.googleapis.com/auth/drive.file',
-                        // 'https://www.googleapis.com/auth/drive', // (chỉ bật tạm khi cần token) ứng dụng cần có security certificates theo tiêu chuẩn google (khá khó), See, edit, create, and delete all of your Google Drive files
+                        // 'https://www.googleapis.com/auth/drive', // (only enable temporarily when token needed) application needs security certificates according to google standards (quite difficult), See, edit, create, and delete all of your Google Drive files
                         // 'https://www.googleapis.com/auth/adwords,
                         // 'https://www.googleapis.com/auth/script.projects'
                     ]);
@@ -513,7 +513,7 @@ if (!function_exists('apps_google_sheet')) {
                 #region generate safe cache key
                 $cacheKey = 'gsheet_headers_' . md5(json_encode([
                     'spreadsheet_id' => Arr::get($spreadsheet, 'spreadsheet.id'),
-                    'sheet_id' => Arr::get($spreadsheet, 'sheet.id'),      // vẫn giữ 0 nếu có, vì với spreadsheet thì sheet đầu tiên có thể có ID value = 0
+                    'sheet_id' => Arr::get($spreadsheet, 'sheet.id'),      // still keep 0 if present, because the first sheet in spreadsheet may have ID value = 0
                     'sheet_name' => Arr::get($spreadsheet, 'sheet.name'),
                 ]));
 
@@ -544,7 +544,7 @@ if (!function_exists('apps_google_sheet')) {
                         // ]);
 
                         $fetched = Sheets::setAccessToken($accessToken)
-                            ->spreadsheet($spreadsheet['spreadsheet']['id']) // đây là điểm làm thay đổi context state, cẩn thận nếu dùng không tường minh logic append data
+                            ->spreadsheet($spreadsheet['spreadsheet']['id']) // this is the point that changes context state, be careful if using implicit logic append data
                             ->sheetById($spreadsheet['sheet']['id'])
                             ->get()
                             ->pull(0);
@@ -569,7 +569,7 @@ if (!function_exists('apps_google_sheet')) {
                     // ]);
 
                     $headers = Sheets::setAccessToken($accessToken)
-                        ->spreadsheet($spreadsheet['spreadsheet']['id']) // đây là điểm làm thay đổi context state, cẩn thận nếu dùng không tường minh logic append data
+                        ->spreadsheet($spreadsheet['spreadsheet']['id']) // this is the point that changes context state, be careful if using implicit logic append data
                         ->sheetById($spreadsheet['sheet']['id'])
                         ->get()
                         ->pull(0);
@@ -665,8 +665,8 @@ if (!function_exists('apps_google_sheet')) {
             //     'values' => $values,
             // ]);
 
-            // nên chỉ định ->spreadsheet 'spreadsheet.id' tường minh, tránh reuse từ previous stage,
-            // cẩn thận việc insert sai spreadsheet nếu context stage "spreadsheet.id" bị tác động ở đâu đó
+            // Should explicitly specify ->spreadsheet 'spreadsheet.id', avoid reuse from previous stage,
+            // Be careful with incorrect spreadsheet insertion if context stage "spreadsheet.id" is modified somewhere
             $result = Sheets::setAccessToken($accessToken)
                 ->spreadsheet(Arr::get($spreadsheet, 'spreadsheet.id'))
                 ->sheetById(Arr::get($spreadsheet, 'sheet.id'))
@@ -748,7 +748,7 @@ if (!function_exists('apps_google_sheet_update_by_log')) {
             ];
         }
 
-        // xác định dòng cần update
+        // Identify the row to update
         preg_match('/!([A-Z]+)(\d+):/', $updatedRange, $matches);
         $startCol = $matches[1] ?? 'A';
         $rowIndex = $matches[2] ?? null;
@@ -760,9 +760,9 @@ if (!function_exists('apps_google_sheet_update_by_log')) {
             ];
         }
 
-        // tính số cột (A, B, C...) → số lượng phần tử của $rowData
+        // Calculate number of columns (A, B, C...) → number of elements in $rowData
         $endColIndex = count($rowData) - 1;
-        $endCol = apps_num2alpha($endColIndex); // ví dụ: 0 → A, 9 → J
+        $endCol = apps_num2alpha($endColIndex); // Example: 0 → A, 9 → J
 
         $targetRange = "{$sheetName}!{$startCol}{$rowIndex}:{$endCol}{$rowIndex}";
 
@@ -858,7 +858,7 @@ if (!function_exists('apps_currency_exchange')) {
 
 if (!function_exists('apps_log_channel')) {
     /**
-     * Tạo logger channel động theo tên + optional author_id
+     * Create a dynamic logger channel by name + optional author_id
      *
      * @param string $logger
      * @param int|null $author_id
@@ -869,14 +869,14 @@ if (!function_exists('apps_log_channel')) {
         try {
             $loggerName = ($author_id ? "member-{$author_id}-" : '') . $logger;
 
-            // Nếu channel chưa tồn tại thì cấu hình nó
+            // If channel doesn't exist yet, configure it
             if (!Config::get("logging.channels.{$loggerName}")) {
                 Config::set("logging.channels.{$loggerName}", [
                     'driver' => 'daily',
                     'path' => storage_path("logs/{$loggerName}.log"),
                     'level' => env('APP_LOG_LEVEL', 'debug'),
                     'days' => 14,
-                    'lazy' => true, // tối ưu I/O ghi disk, không nên bật nếu ghi log quan trọng liên quan tới log tài chính vì cần phải ghi ngay.
+                    'lazy' => true, // Optimize disk I/O, should not enable if important financial-related logs need to be written immediately.
                 ]);
             }
 
@@ -893,35 +893,35 @@ if (!function_exists('apps_log_channel')) {
 
 if (!function_exists('apps_log_write')) {
     /**
-     * Ghi log nâng cao cho ứng dụng.
+     * Advanced logging for the application.
      *
-     * Hỗ trợ log thường + log block có cấu trúc:
+     * Supports regular logs + structured block logs:
      *   start → step → success/fail
      *
-     * Example 1: Log thường (giống version cũ)
+     * Example 1: Regular log (like old version)
      * ----------------------------------------------------
      * apps_log_write('info', 'Something happened', 'facebook-webhook');
      *
-     * Example 2: Log block với START / SUCCESS / FAIL
+     * Example 2: Log block with START / SUCCESS / FAIL
      * ----------------------------------------------------
      * apps_log_write('info', 'Webhook@handle', 'facebook-webhook', 'start');
-     * apps_log_write('info', 'Đang phân tích dữ liệu', 'facebook-webhook', 'step');
+     * apps_log_write('info', 'Analyzing data', 'facebook-webhook', 'step');
      * apps_log_write('info', 'Webhook@handle', 'facebook-webhook', 'success');
      *
-     * Example 3: Log block bị lỗi
+     * Example 3: Log block with error
      * ----------------------------------------------------
      * apps_log_write('info', 'Webhook@handle', 'facebook-webhook', 'start');
      * try {
-     *     throw new \Exception('Lỗi parse JSON');
+     *     throw new \Exception('JSON parsing error');
      * } catch (\Throwable $e) {
      *     apps_log_write('error', 'Webhook@handle', 'facebook-webhook', 'fail', $e);
      * }
      *
-     * @param string $level       Mức log: info|debug|warning|error
-     * @param string $message     Nội dung hoặc tên block (nếu block log)
-     * @param string|null $channel Kênh log, mặc định theo config logging.default
+     * @param string $level       Log level: info|debug|warning|error
+     * @param string $message     Content or block name (if block log)
+     * @param string|null $channel Log channel, defaults to config logging.default
      * @param string $mode        normal | start | success | fail | step
-     * @param \Throwable|null $exception Ngoại lệ nếu có (fail mode)
+     * @param \Throwable|null $exception Exception if any (fail mode)
      *
      * @return void
      */
@@ -936,14 +936,14 @@ if (!function_exists('apps_log_write')) {
 
         $channelName = $channel ? apps_log_channel($channel) : config('logging.default');
 
-        // Khi block bắt đầu → lưu timestamp
+        // When block starts → save timestamp
         if ($mode === 'start') {
             $blockStartTimes[$message] = microtime(true);
             Log::channel($channelName)->{$level}("📥 [BLOCK START] {$message}");
             return;
         }
 
-        // Khi block thành công → tính duration
+        // When block succeeds → calculate duration
         if ($mode === 'success') {
             $duration = isset($blockStartTimes[$message])
                 ? round((microtime(true) - $blockStartTimes[$message]) * 1000, 2)
@@ -954,7 +954,7 @@ if (!function_exists('apps_log_write')) {
             return;
         }
 
-        // Khi block thất bại → log fail + duration + exception
+        // When block fails → log fail + duration + exception
         if ($mode === 'fail') {
             $duration = isset($blockStartTimes[$message])
                 ? round((microtime(true) - $blockStartTimes[$message]) * 1000, 2)
@@ -970,7 +970,7 @@ if (!function_exists('apps_log_write')) {
             return;
         }
 
-        // Log từng bước trong block → không reset timestamp
+        // Log each step in block → don't reset timestamp
         if ($mode === 'step') {
             $elapsed = isset($blockStartTimes[$message])
                 ? round((microtime(true) - $blockStartTimes[$message]) * 1000, 2)
@@ -980,45 +980,45 @@ if (!function_exists('apps_log_write')) {
             return;
         }
 
-        // Mặc định → log thông thường như phiên bản cũ
+        // Default → regular log like old version
         Log::channel($channelName)->{$level}($message);
     }
 }
 
 if (!function_exists('apps_log_stringify')) {
     /**
-     * Chuyển giá trị bất kỳ thành chuỗi an toàn để log
+     * Convert any value to a safe string for logging
      *
-     * Hỗ trợ chuyển đổi các kiểu dữ liệu: string, scalar (int, float, bool), null,
-     * array, object (có/không có __toString), và các kiểu không thể log.
+     * Supports conversion of data types: string, scalar (int, float, bool), null,
+     * array, object (with/without __toString), and unloggable types.
      *
-     * @param mixed $value Giá trị cần chuyển đổi
-     * @return string Chuỗi an toàn để log
+     * @param mixed $value Value to convert
+     * @return string Safe string for logging
      *
      * @example
-     * // String - trả về nguyên bản
+     * // String - return as is
      * apps_log_stringify('Hello World'); // 'Hello World'
      *
-     * // Scalar values - chuyển sang string
+     * // Scalar values - convert to string
      * apps_log_stringify(123); // '123'
      * apps_log_stringify(45.67); // '45.67'
      * apps_log_stringify(true); // '1'
      * apps_log_stringify(null); // ''
      *
-     * // Array - chuyển sang JSON
+     * // Array - convert to JSON
      * apps_log_stringify(['name' => 'John', 'age' => 30]);
      * // '{"name":"John","age":30}'
      *
-     * // Object có __toString
+     * // Object with __toString
      * $date = new \DateTime('2024-01-01');
      * apps_log_stringify($date); // '2024-01-01 00:00:00'
      *
-     * // Object không có __toString - chuyển sang JSON hoặc class name
+     * // Object without __toString - convert to JSON or class name
      * $user = new stdClass();
      * $user->name = 'John';
-     * apps_log_stringify($user); // '{"name":"John"}' hoặc 'Object(stdClass)'
+     * apps_log_stringify($user); // '{"name":"John"}' or 'Object(stdClass)'
      *
-     * // Sử dụng với Log
+     * // Use with Log
      * Log::channel('daily')->info('User data: ' . apps_log_stringify($userData));
      */
     function apps_log_stringify(mixed $value): string
@@ -1893,36 +1893,36 @@ if (!function_exists('apps_phone_extraction')) {
 
 #region bộ hàm apps_cache_*
 /**
- * Tạo ra cache key và ghi nhớ nó thuộc group nào.
- * Nếu $group được truyền vào:
- * Ghi nhận key này trong danh sách group_xxx (kiểu mảng lưu tối đa 100 key).
- * Ghi nhận tên group vào danh sách toàn cục (dùng cho reset sau này).
- * Nếu không có $group, chỉ đơn giản trả về $cacheKey.
+ * Create a cache key and remember which group it belongs to.
+ * If $group is passed:
+ * Register this key in the group_xxx list (array type storing max 100 keys).
+ * Register group name in global list (for later reset).
+ * If no $group, simply return $cacheKey.
  * 
- * @param string $cacheKey: tên cache cụ thể (ví dụ: user_1234)
- * @param string $group: tên nhóm cache (ví dụ: user_list)
+ * @param string $cacheKey: specific cache name (example: user_1234)
+ * @param string $group: cache group name (example: user_list)
  * 
- * Trả lại key dùng để lưu vào cache.
+ * Returns the key to use for storing in cache.
  */
 if (!function_exists('apps_cache_get_key')) {
     /**
-     * Tự động tạo key trong danh sách group
-     * Lưu lại group vào danh sách các key để quản lí và xoá
-     * Tối đa chỉ lưu 100 key cho mỗi group để tránh quá tải redis hoặc Mem máy.
-     * Khi đạt giới hạn, phần tử đầu tiên (FIFO) sẽ bị xóa khỏi cache và groupData.
+     * Automatically create key in group list
+     * Save group in the list of keys for management and deletion
+     * Store max 100 keys per group to avoid redis or machine memory overload.
+     * When reaching limit, the first element (FIFO) will be deleted from cache and groupData.
      * 
-     * @param string $cacheKey : Key cache trong group, nếu không có thì put queue vào trong danh sách key của group
-     * @param string|null $group : Tên group cache, chứa các key chung nhóm. nếu đặt null thì là một cacheKey riêng không nằm trong group nào cả
-     * @return string Applied key với prefix (app:cacheKey)
+     * @param string $cacheKey : Cache key in group, if not present then add queue to group's key list
+     * @param string|null $group : Cache group name, contains group's common keys. if set to null then it's a separate cacheKey not in any group
+     * @return string Applied key with prefix (app:cacheKey)
      */
     function apps_cache_get_key(string $cacheKey = 'default', string|null $group = null)
     {
         try {
-            // Prefix key theo APP_NAME để phân tách giữa các app/DB
+            // Prefix key by APP_NAME to separate between apps/DB
             $prefix = Str::slug(env('APP_NAME', 'app'));
             $appliedKey = $prefix . ":" . $cacheKey;
 
-            // nếu không có group, trả về key kèm prefix app name
+            // If no group, return key with app name prefix
             if (blank($group)) {
                 return $appliedKey;
             }
@@ -1933,30 +1933,30 @@ if (!function_exists('apps_cache_get_key')) {
             $app_cache_key = md5("app_data_cache_list");
             $cache_list = Cache::has($app_cache_key) ? Cache::get($app_cache_key) : [];
             $groupSlug = Str::slug($group);
-            $cache_list[$groupSlug] = true; // Lưu tên group (slug) vào danh sách quản lí app cache
+            $cache_list[$groupSlug] = true; // Save group name (slug) to app cache management list
             Cache::forever($app_cache_key, $cache_list);
 
-            /* lấy danh sách key của group, sử dụng slug để tránh ký tự đặc biệt */
+            /* Get list of keys in group, use slug to avoid special characters */
             $groupName = "group_" . $groupSlug;
             $groupCacheKey = md5($groupName);
             $groupData = json_decode(Cache::get($groupCacheKey, '[]'), true) ?: [];
 
-            /* Sử dụng FIFO queue để lưu dữ liệu, giới hạn tối đa 100 key */
-            /* Khi đạt giới hạn, phần tử đầu tiên sẽ bị xóa (FIFO - First In First Out) */
+            /* Use FIFO queue to store data, limit max 100 keys */
+            /* When reaching limit, the first element will be deleted (FIFO - First In First Out) */
             $MAX_ITEM = 100;
             if (!in_array($appliedKey, $groupData)) {
                 if (count($groupData) >= $MAX_ITEM) {
-                    Cache::forget($groupData[0]); // Xóa phần tử đầu tiên nếu đạt giới hạn
+                    Cache::forget($groupData[0]); // Delete first element if reaching limit
                     array_shift($groupData);
                 }
-                array_push($groupData, $appliedKey); // Thêm phần tử mới vào cuối mảng
+                array_push($groupData, $appliedKey); // Add new element at end of array
                 Cache::forever($groupCacheKey, apps_json_encode($groupData));
             }
 
-            /* trả về key kèm prefix app name */
+            /* Return key with app name prefix */
             return $appliedKey;
         } catch (\Throwable $th) {
-            /* log lỗi nếu có exception */
+            /* Log error if exception occurs */
             Log::channel(apps_log_channel("app_cache"))->error("Get data error at: " . $cacheKey . ", " . $group);
             Log::channel(apps_log_channel("app_cache"))->error($th->getMessage());
             return Str::slug(env('APP_NAME')) . ":" . 'default';
@@ -1999,17 +1999,17 @@ if (!function_exists('apps_cache_store')) {
                 // Nếu đã có appliedKey, chỉ cần store data
                 $cacheKey = $key;
 
-                // Nếu có group, vẫn phải register appliedKey vào groupData
+                // If group exists, still need to register appliedKey in groupData
                 if (!blank($group)) {
                     $groupSlug = Str::slug($group);
 
-                    // Register group vào app cache list
+                    // Register group in app cache list
                     $app_cache_key = md5("app_data_cache_list");
                     $cache_list = Cache::has($app_cache_key) ? Cache::get($app_cache_key) : [];
                     $cache_list[$groupSlug] = true;
                     Cache::forever($app_cache_key, $cache_list);
 
-                    // Thêm appliedKey vào groupData
+                    // Add appliedKey to groupData
                     $groupName = "group_" . $groupSlug;
                     $groupCacheKey = md5($groupName);
                     $groupData = json_decode(Cache::get($groupCacheKey, '[]'), true) ?: [];
@@ -2025,7 +2025,7 @@ if (!function_exists('apps_cache_store')) {
                     }
                 }
             } else {
-                // Cách cũ: gọi apps_cache_get_key() để tạo key và register group
+                // Old way: call apps_cache_get_key() to create key and register group
                 $cacheKey = apps_cache_get_key($key, $group);
             }
 
@@ -2041,23 +2041,23 @@ if (!function_exists('apps_cache_store')) {
 
 if (!function_exists('apps_cache_get')) {
     /**
-     * Lấy dữ liệu từ cache theo cùng logic tạo key (có hỗ trợ group/prefix).
-     * Dùng hàm này thay vì gọi trực tiếp cache()->get($key) để tránh sai key
-     * khi thay đổi cơ chế prefix (ví dụ bật prefix theo APP_NAME).
+     * Retrieve data from cache using the same key creation logic (with group/prefix support).
+     * Use this function instead of calling cache()->get($key) directly to avoid key mismatch
+     * when changing prefix mechanism (e.g., enabling prefix by APP_NAME).
      *
-     * 🎯 OPTIMIZATION: Nếu đã có $appliedKey từ apps_cache_get_key(), truyền vào để tránh gọi lại.
+     * 🎯 OPTIMIZATION: If you already have $appliedKey from apps_cache_get_key(), pass it to avoid re-calling.
      *
-     * @param string   $key         Khóa cache (có thể là appliedKey hoặc key gốc).
-     * @param mixed    $default     Giá trị mặc định nếu cache không tồn tại.
-     * @param ?string  $group       Tên nhóm cache (chỉ dùng khi $isAppliedKey = false).
-     * @param bool     $isAppliedKey Nếu true, $key đã là appliedKey rồi, không cần gọi apps_cache_get_key().
+     * @param string   $key         Cache key (can be appliedKey or original key).
+     * @param mixed    $default     Default value if cache doesn't exist.
+     * @param ?string  $group       Cache group name (only used when $isAppliedKey = false).
+     * @param bool     $isAppliedKey If true, $key is already appliedKey, no need to call apps_cache_get_key().
      * @return mixed
      *
      * @example
-     * // Cách 1: Truyền key gốc (gọi apps_cache_get_key) - BACKWARD COMPATIBLE
+     * // Way 1: Pass original key (calls apps_cache_get_key) - BACKWARD COMPATIBLE
      * $data = apps_cache_get('user_123', null, 'users');
      *
-     * // Cách 2: Truyền appliedKey đã có (OPTIMAL - tránh gọi apps_cache_get_key)
+     * // Way 2: Pass appliedKey already obtained (OPTIMAL - avoid calling apps_cache_get_key)
      * $appliedKey = apps_cache_get_key('user_123', 'users');
      * $data = apps_cache_get($appliedKey, null, null, true);
      */
@@ -2080,7 +2080,7 @@ if (!function_exists('apps_cache_get')) {
 
 if (!function_exists('apps_cache_get_caller_info')) {
     /**
-     * Lấy thông tin caller để trace root cause
+     * Get caller information to trace root cause
      * 
      * @return array
      */
@@ -2088,14 +2088,14 @@ if (!function_exists('apps_cache_get_caller_info')) {
     {
         $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5);
 
-        // Bỏ qua chính function này và các helper functions
+        // Skip this function itself and other helper functions
         $skipFunctions = ['apps_cache_flush', 'apps_cache_get_caller_info'];
 
         foreach ($trace as $index => $frame) {
             $function = $frame['function'] ?? '';
             $class = $frame['class'] ?? '';
 
-            // Tìm caller đầu tiên không phải là helper function
+            // Find first caller that is not a helper function
             if (!in_array($function, $skipFunctions)) {
                 return [
                     'file' => $frame['file'] ?? 'unknown',
@@ -2107,7 +2107,7 @@ if (!function_exists('apps_cache_get_caller_info')) {
             }
         }
 
-        // Fallback: lấy frame đầu tiên có thông tin
+        // Fallback: get first frame with information
         if (isset($trace[2])) {
             $frame = $trace[2];
             return [
@@ -2125,25 +2125,25 @@ if (!function_exists('apps_cache_get_caller_info')) {
 
 if (!function_exists('apps_cache_flush')) {
     /**
-     * Xóa dữ liệu trong cache theo key hoặc theo nhóm.
+     * Delete data from cache by key or by group.
      *
-     * - Nếu chỉ truyền `$cacheKey`, hàm sẽ xóa cache theo key cụ thể.
-     * - Nếu truyền `$group`, hàm sẽ xóa tất cả cache thuộc nhóm đó và xóa luôn nhóm cache.
+     * - If only $cacheKey is passed, the function will delete cache by specific key.
+     * - If $group is passed, the function will delete all cache in that group and delete the group cache.
      *
-     * 🎯 OPTIMIZATION: Nếu đã có $appliedKey từ apps_cache_get_key(), truyền vào để tránh gọi lại.
+     * 🎯 OPTIMIZATION: If you already have $appliedKey from apps_cache_get_key(), pass it to avoid re-calling.
      *
-     * @param string|null $cacheKey  Khóa cache cần xóa (có thể là appliedKey hoặc key gốc).
-     * @param string|null $group     Nhóm cache cần xóa toàn bộ (tuỳ chọn).
-     * @param bool $isAppliedKey     Nếu true, $cacheKey đã là appliedKey rồi, không cần gọi apps_cache_get_key().
+     * @param string|null $cacheKey  Cache key to delete (can be appliedKey or original key).
+     * @param string|null $group     Cache group to delete entirely (optional).
+     * @param bool $isAppliedKey     If true, $cacheKey is already appliedKey, no need to call apps_cache_get_key().
      *
      * @example
-     * // Cách 1: Truyền key gốc (gọi apps_cache_get_key) - BACKWARD COMPATIBLE
-     * apps_cache_flush('user_123'); // xoá 1 key
-     * apps_cache_flush(null, 'users'); // xoá cả nhóm 'users'
+     * // Way 1: Pass original key (calls apps_cache_get_key) - BACKWARD COMPATIBLE
+     * apps_cache_flush('user_123'); // Delete 1 key
+     * apps_cache_flush(null, 'users'); // Delete entire 'users' group
      *
-     * // Cách 2: Truyền appliedKey đã có (OPTIMAL - tránh gọi apps_cache_get_key)
+     * // Way 2: Pass appliedKey already obtained (OPTIMAL - avoid calling apps_cache_get_key)
      * $appliedKey = apps_cache_get_key('user_123', null);
-     * apps_cache_flush($appliedKey, null, true); // ⚠️ PHẢI SET isAppliedKey = true
+     * apps_cache_flush($appliedKey, null, true); // ⚠️ MUST SET isAppliedKey = true
      * 
      * @return void
      */
@@ -2153,24 +2153,24 @@ if (!function_exists('apps_cache_flush')) {
         bool $isAppliedKey = false
     ) {
         try {
-            // Lấy thông tin caller để trace root cause
+            // Get caller information to trace root cause
             $caller = apps_cache_get_caller_info();
 
             if (blank($group)) {
-                // Nếu không có group, xóa cache theo key cụ thể
+                // If no group, delete cache by specific key
                 if (blank($cacheKey)) {
                     Log::channel(apps_log_channel("app_cache"))->warning("Flush skipped: cacheKey is blank");
                     return;
                 }
 
-                // Tính key đã áp dụng prefix để xoá chính xác
+                // Calculate applied key with prefix to delete accurately
                 $appliedKey = $isAppliedKey ? $cacheKey : apps_cache_get_key($cacheKey, null);
 
-                // Xóa cache
+                // Delete cache
                 Cache::forget($appliedKey);
 
-                // QUAN TRỌNG: Xóa key khỏi tất cả các group có chứa nó để tránh memory leak
-                // và đảm bảo groupData đồng bộ với cache thực tế
+                // IMPORTANT: Delete key from all groups that contain it to avoid memory leak
+                // and ensure groupData is in sync with actual cache
                 $app_cache_key = md5("app_data_cache_list");
                 $cache_list = Cache::has($app_cache_key) ? Cache::get($app_cache_key) : [];
 
@@ -2184,7 +2184,7 @@ if (!function_exists('apps_cache_flush')) {
 
                     $groupData = json_decode(Cache::get($groupCacheKey), true) ?? [];
 
-                    // Tìm và xóa appliedKey khỏi groupData
+                    // Find and remove appliedKey from groupData
                     $keyIndex = array_search($appliedKey, $groupData, true);
                     if ($keyIndex !== false) {
                         unset($groupData[$keyIndex]);
@@ -2193,7 +2193,7 @@ if (!function_exists('apps_cache_flush')) {
                         if (count($groupData) > 0) {
                             Cache::forever($groupCacheKey, apps_json_encode($groupData));
                         } else {
-                            // Nếu group rỗng, xóa luôn group cache key
+                            // If group is empty, delete group cache key
                             Cache::forget($groupCacheKey);
                         }
 
@@ -2211,14 +2211,14 @@ if (!function_exists('apps_cache_flush')) {
                     'file' => basename($caller['file'] ?? 'unknown') . ':' . ($caller['line'] ?? 0)
                 ]);
             } else {
-                // Xóa toàn bộ cache trong group
+                // Delete all cache in group
                 $groupSlug = Str::slug($group);
                 $groupCacheKey = md5("group_" . $groupSlug);
 
                 if (!Cache::has($groupCacheKey)) {
-                    // Group chưa được tạo hoặc đã bị xóa - đây là trường hợp bình thường
-                    // Không log để tránh spam log khi Observer được trigger nhiều lần
-                    // (ví dụ: bulk update ProviderForm sẽ trigger Observer nhiều lần)
+                    // Group not yet created or already deleted - this is normal
+                    // Don't log to avoid spam when Observer is triggered multiple times
+                    // (example: bulk update ProviderForm will trigger Observer multiple times)
                     return;
                 }
 
@@ -2236,13 +2236,13 @@ if (!function_exists('apps_cache_flush')) {
                     return;
                 }
 
-                // Xóa từng cache key trong group
+                // Delete each cache key in group
                 foreach ($groupData as $appliedKey) {
                     Cache::forget($appliedKey);
                     Log::channel(apps_log_channel("app_cache"))->debug("Flushed cached data: $appliedKey");
                 }
 
-                // Xóa group cache key sau khi đã xóa hết các cache con
+                // Delete group cache key after deleting all child cache
                 Cache::forget($groupCacheKey);
                 Log::channel(apps_log_channel("app_cache"))->info("Flushed group cache", [
                     'group' => $group,
@@ -2266,12 +2266,12 @@ if (!function_exists('apps_cache_flush')) {
 
 if (!function_exists('apps_cache_reset')) {
     /**
-     * Đặt lại toàn bộ cache của ứng dụng bằng cách xóa tất cả các nhóm cache đã lưu.
+     * Reset all application cache by deleting all saved cache groups.
      *
-     * - Lấy danh sách các nhóm cache đã lưu.
-     * - Duyệt qua từng nhóm và gọi `apps_cache_flush()` để xóa toàn bộ cache trong nhóm.
-     * - Xóa luôn danh sách quản lý cache sau khi hoàn tất.
-     * - Ghi log quá trình xóa để theo dõi.
+     * - Get list of saved cache groups.
+     * - Loop through each group and call `apps_cache_flush()` to delete all cache in the group.
+     * - Delete the cache management list after completion.
+     * - Log the deletion process for tracking.
      *
      * @return void
      */
@@ -2279,7 +2279,7 @@ if (!function_exists('apps_cache_reset')) {
     {
         try {
             $app_cache_key = md5("app_data_cache_list");
-            $cache_list = Cache::has($app_cache_key) ? Cache::get($app_cache_key) : []; // Lấy danh sách group
+            $cache_list = Cache::has($app_cache_key) ? Cache::get($app_cache_key) : []; // Get list of groups
             foreach ($cache_list as $key => $flag) {
                 Log::channel(apps_log_channel("app_cache"))->info("- Delete cache group " . $key);
                 apps_cache_flush(null, $key); // Lọc từng group và xoá hết các cachekey trong nó
@@ -2357,7 +2357,7 @@ if (!function_exists('apps_json_encode')) {
         array|object|null $data,
         bool $pretty = false,
         bool $withEol = false,
-        bool $throwOnError = true // mặc định là true, trừ khi có lý do rõ ràng để không dùng
+        bool $throwOnError = true // Default is true, except when there's a clear reason not to use
     ): string {
         $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
 

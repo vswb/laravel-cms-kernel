@@ -60,7 +60,7 @@ Route::group([
             'as' => 'test'
         ],
         function () {
-            // Middleware test route - để verify middleware hoạt động
+            // Middleware test route - to verify middleware is working
             Route::get('middleware-check', [
                 'as' => '.middleware-check',
                 'uses' => 'KernelController@middlewareCheck',
