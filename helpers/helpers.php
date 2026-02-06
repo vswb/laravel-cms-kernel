@@ -1887,7 +1887,8 @@ if (!function_exists('apps_phone_extraction')) {
         $str = Str::slug($str, '');
         preg_match_all($pattern, $str, $matches); // custom pattern
 
-        return trim(Arr::get($matches, '0.0', null));
+        $match = Arr::get($matches, '0.0', null);
+        return $match === null ? null : trim((string) $match);
     }
 }
 
