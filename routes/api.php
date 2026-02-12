@@ -27,7 +27,7 @@ Route::group([
             'data' => null,
             'message' => 'The system is already running the latest version. For further assistance, please contact us at toan@visualweber.com or call +84 943 999 819',
         ]);
-    })->name('license.check-update');
+    })->name('license.check-update.get');
 
     Route::get('license/verify', function (): JsonResponse {
         return response()->json([
