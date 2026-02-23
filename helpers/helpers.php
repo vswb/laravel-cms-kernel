@@ -460,8 +460,29 @@ if (!function_exists('apps_google_sheet')) {
                     // Log::channel($logger)->info("Starting with credential '{$credentialsType}'");
 
                     #region Setup Google Credentials
-                    if (!$credentialsFile)
-                        $credentialsFile = config_path('google-pull.vn-service-account-110095136248877193658.json'); // Service Account
+                    if (! $credentialsFile) {
+                        $configuredPath = (string) config('google.service.file', config_path('google-service-account-credentials.json'));
+                        $resolvedConfiguredPath = str_starts_with($configuredPath, DIRECTORY_SEPARATOR)
+                            ? $configuredPath
+                            : config_path($configuredPath);
+
+                        $candidateFiles = [
+                            storage_path('app/google-service-account-credentials.json'),
+                            $resolvedConfiguredPath,
+                            config_path('google-service-account-credentials.json'),
+                        ];
+
+                        foreach ($candidateFiles as $candidateFile) {
+                            if (is_file($candidateFile) && is_readable($candidateFile)) {
+                                $credentialsFile = $candidateFile;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (! $credentialsFile || ! is_file($credentialsFile) || ! is_readable($credentialsFile)) {
+                        throw new Exception('Google service account credentials file is missing or not readable');
+                    }
 
                     $client->setAuthConfig($credentialsFile); // use environment variable: putenv("GOOGLE_APPLICATION_CREDENTIALS=$credentialsFile"); $client->useApplicationDefaultCredentials();
                     #endregion
