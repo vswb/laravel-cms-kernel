@@ -1682,6 +1682,28 @@ if (!function_exists('apps_province_detection')) {
         return $filtered->first(); // return An Giang for example
     }
 }
+
+if (!function_exists('apps_unicode_decode')) {
+    /**
+     * Decode Unicode escape sequences in a string.
+     * Optimized: fast pre-check with strpos and string-only focus.
+     *
+     * @param mixed $str
+     * @return mixed
+     */
+    function apps_unicode_decode($str)
+    {
+        if (!is_string($str) || strpos($str, '\\') === false) {
+            return $str;
+        }
+
+        return preg_replace_callback('/\\\\[Uu]([0-9A-Fa-f]{4})/', function ($m) {
+            return json_decode('"\u' . $m[1] . '"');
+        }, $str);
+    }
+}
+
+
 if (!function_exists('apps_get_provinces_districts_rawdata')) {
     /**
      * Get Vietnamese provinces with their districts, or districts for a specific province.
