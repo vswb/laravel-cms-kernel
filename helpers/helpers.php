@@ -460,7 +460,7 @@ if (!function_exists('apps_google_sheet')) {
                     // Log::channel($logger)->info("Starting with credential '{$credentialsType}'");
 
                     #region Setup Google Credentials
-                    if (! $credentialsFile) {
+                    if (!$credentialsFile) {
                         $configuredPath = (string) config('google.service.file', config_path('google-service-account-credentials.json'));
                         $resolvedConfiguredPath = str_starts_with($configuredPath, DIRECTORY_SEPARATOR)
                             ? $configuredPath
@@ -480,7 +480,7 @@ if (!function_exists('apps_google_sheet')) {
                         }
                     }
 
-                    if (! $credentialsFile || ! is_file($credentialsFile) || ! is_readable($credentialsFile)) {
+                    if (!$credentialsFile || !is_file($credentialsFile) || !is_readable($credentialsFile)) {
                         throw new Exception('Google service account credentials file is missing or not readable');
                     }
 
@@ -1903,13 +1903,31 @@ if (!function_exists('apps_phone_extraction')) {
      * @param string $pattern Regex pattern for phone number matching
      * @return string|null Extracted phone number or null if not found
      */
-    function apps_phone_extraction($str, $pattern = '/(\+\d{1,2})?\s?\(?\d{1,4}\)?[\s.-]?\d{3}[\s.-]?\d{4}/')
+    function apps_phone_extraction($str, $pattern = '/(?:\+?\d[\s\.\-\(\)]*){10,15}/')
     {
-        $str = Str::slug($str, '');
         preg_match_all($pattern, $str, $matches); // custom pattern
 
-        $match = Arr::get($matches, '0.0', null);
-        return $match === null ? null : trim((string) $match);
+        if (!empty($matches[0])) {
+            foreach ($matches[0] as $match) {
+                // clean up the matched string
+                $clean = preg_replace('/[\s\.\-\(\)]/', '', $match);
+
+                // Check valid VN phone:
+                // - Starts with 0, length 10 or 11
+                // - Starts with 84, length 11 or 12
+                // - Starts with +84, length 12 or 13
+                if (preg_match('/^(?:\+84|84|0)[0-9]{9,10}$/', $clean)) {
+                    return trim((string) $match);
+                }
+
+                // Fallback for general international 10-15 digits
+                if (preg_match('/^\+?\d{10,15}$/', $clean)) {
+                    return trim((string) $match);
+                }
+            }
+        }
+
+        return null;
     }
 }
 

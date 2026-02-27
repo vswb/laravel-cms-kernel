@@ -218,7 +218,7 @@ class TestCommand extends Command
                 "⚠️⚠️⚠️ Application: " . env("APP_NAME"),
                 __CLASS__ . " " . __FUNCTION__ . " is running",
                 app('url')->full(),
-            ], 'pullerrors', $this->logger); // send important message to telegram
+            ], 'pull', $this->logger ?? 'daily', ['message_thread_id' => '2']); // send important message to telegram
 
             dd("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
