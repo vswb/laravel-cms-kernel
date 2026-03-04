@@ -8,6 +8,7 @@ use Dev\Kernel\Commands\MemberBirthdayNotificationCommand;
 use Dev\Kernel\Commands\TestCommand;
 use Dev\Kernel\Commands\SetupGitHookCommand;
 use Dev\Kernel\Commands\CheckMiddlewareCommand;
+use Dev\Kernel\Commands\GDriveMirrorSync;
 
 class CommandServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,7 @@ class CommandServiceProvider extends ServiceProvider
                 MemberBirthdayNotificationCommand::class,
                 SetupGitHookCommand::class,
                 CheckMiddlewareCommand::class,
+                GDriveMirrorSync::class,
             ]);
         }
     }
