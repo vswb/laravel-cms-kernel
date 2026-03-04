@@ -1,14 +1,31 @@
 <?php
 /**
+ * (c) Copyright 2026 VISUAL WEBER COMPANY LIMITED. All rights reserved.
+ * Distributed by: VISUAL WEBER CO., LTD.
+ * * [PRODUCT INFORMATION]
+ * This software is a proprietary product developed by Visual Weber.
+ * All rights to the software and its components are reserved under 
+ * Intellectual Property laws.
+ * * [TERMS OF USE]
+ * Usage is permitted strictly according to the License Agreement 
+ * between Visual Weber and the Client.
+ * -------------------------------------------------------------------------
+ * (c) Bản quyền thuộc về CÔNG TY TNHH VISUAL WEBER 2026. Bảo lưu mọi quyền.
+ * Phát hành bởi: Công ty TNHH Visual Weber.
+ * * [THÔNG TIN SẢN PHẨM]
+ * Phần mềm này là sản phẩm độc quyền được phát triển bởi Visual Weber.
+ * Mọi quyền đối với phần mềm và các thành phần cấu thành đều được bảo hộ 
+ * theo luật Sở hữu trí tuệ.
+ * * [ĐIỀU KHOẢN SỬ DỤNG]
+ * Việc sử dụng được giới hạn nghiêm ngặt theo Hợp đồng cung cấp dịch vụ/phần mềm 
+ * giữa Visual Weber và Khách hàng.
+ */
+
+/**
  * GOOGLE DRIVE API SETUP GUIDES:
  * 1. How to get Client ID and Secret: https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/1-getting-your-dlient-id-and-secret.md
  * 2. How to get Refresh Token: https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/2-getting-your-refresh-token.md
  * 3. How to get Root Folder ID: https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/3-getting-your-root-folder-id.md
- * 
- * USEFUL TOOLS:
- * - Google OAuth Playground: https://developers.google.com/oauthplayground
- * - Google Cloud Console (Credentials): https://console.cloud.google.com/apis/credentials
- * - Reference Article (Vietnamese): https://phambinh.net/bai-viet/su-dung-google-drive-lam-filesystem-driver-trong-laravel/
  */
 
 namespace Dev\Kernel\Commands;

@@ -1,4 +1,26 @@
 <?php
+/**
+ * (c) Copyright 2026 VISUAL WEBER COMPANY LIMITED. All rights reserved.
+ * Distributed by: VISUAL WEBER CO., LTD.
+ * * [PRODUCT INFORMATION]
+ * This software is a proprietary product developed by Visual Weber.
+ * All rights to the software and its components are reserved under 
+ * Intellectual Property laws.
+ * * [TERMS OF USE]
+ * Usage is permitted strictly according to the License Agreement 
+ * between Visual Weber and the Client.
+ * -------------------------------------------------------------------------
+ * (c) Bản quyền thuộc về CÔNG TY TNHH VISUAL WEBER 2026. Bảo lưu mọi quyền.
+ * Phát hành bởi: Công ty TNHH Visual Weber.
+ * * [THÔNG TIN SẢN PHẨM]
+ * Phần mềm này là sản phẩm độc quyền được phát triển bởi Visual Weber.
+ * Mọi quyền đối với phần mềm và các thành phần cấu thành đều được bảo hộ 
+ * theo luật Sở hữu trí tuệ.
+ * * [ĐIỀU KHOẢN SỬ DỤNG]
+ * Việc sử dụng được giới hạn nghiêm ngặt theo Hợp đồng cung cấp dịch vụ/phần mềm 
+ * giữa Visual Weber và Khách hàng.
+ */
+
 
 namespace Dev\Kernel\Commands;
 
@@ -41,10 +63,10 @@ class CheckMiddlewareCommand extends Command
 
         /** @var Router $router */
         $router = app('router');
-        
+
         // Get middleware groups
         $middlewareGroups = $router->getMiddlewareGroups();
-        
+
         if (!isset($middlewareGroups[$group])) {
             $this->error("❌ Middleware group '{$group}' not found!");
             $this->info("Available groups: " . implode(', ', array_keys($middlewareGroups)));
@@ -75,7 +97,7 @@ class CheckMiddlewareCommand extends Command
             $class = is_string($middleware) ? $middleware : get_class($middleware);
             $isExpected = in_array($class, $expectedMiddlewares);
             $status = $isExpected ? '✅' : '⚠️';
-            
+
             $table[] = [
                 $index + 1,
                 $status,
@@ -92,7 +114,7 @@ class CheckMiddlewareCommand extends Command
         // Check if all expected middlewares are present
         $this->newLine();
         $this->info("📋 Expected Middleware Check:");
-        
+
         $missing = [];
         foreach ($expectedMiddlewares as $expected) {
             $found = false;
@@ -103,7 +125,7 @@ class CheckMiddlewareCommand extends Command
                     break;
                 }
             }
-            
+
             if ($found) {
                 $this->line("  ✅ {$expected}");
             } else {
@@ -128,19 +150,19 @@ class CheckMiddlewareCommand extends Command
             $this->newLine();
             $this->info("📝 Detailed Information:");
             $this->newLine();
-            
+
             foreach ($expectedMiddlewares as $expected) {
                 $this->line("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                 $this->line("📦 {$expected}");
-                
+
                 // Check if class exists
                 if (class_exists($expected)) {
                     $this->line("   ✅ Class exists");
-                    
+
                     // Get file path
                     $reflection = new \ReflectionClass($expected);
                     $this->line("   📁 File: " . $reflection->getFileName());
-                    
+
                     // Check if it's in the middleware list
                     $inList = false;
                     foreach ($middlewares as $middleware) {
@@ -150,7 +172,7 @@ class CheckMiddlewareCommand extends Command
                             break;
                         }
                     }
-                    
+
                     if ($inList) {
                         $this->line("   ✅ Active in '{$group}' group");
                     } else {
