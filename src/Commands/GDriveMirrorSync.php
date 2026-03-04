@@ -31,14 +31,16 @@ class GDriveMirrorSync extends Command
      * @var string
      */
     protected $signature = 'gdrive:mirror:sync
-        {folders* : specific folders on Google Drive to mirror, e.g., 2022 2023}';
+        {folders* : specific folders on Google Drive to mirror, e.g., 2022 2023}
+        {--force : Force download all files even if they haven\'t changed}
+        {--delete : Delete local files/folders that no longer exist on Google Drive}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Mirror files from Google Drive to local storage while maintaining exact paths/filenames and exporting Google Docs to PDF.';
+    protected $description = 'Mirror files from Google Drive to local storage with Delta Sync, Progress Bar, and optional cleanup.';
 
     protected $log_channel = 'daily';
 
@@ -63,6 +65,8 @@ class GDriveMirrorSync extends Command
      */
     public function handle()
     {
+        set_time_limit(0); // Prevent timeout for large syncs
+
         try {
             // Check if feature is enabled
             $isEnabled = $this->getGdriveSetting('social_login_google_drive_enable', 'GOOGLE_DRIVE_ENABLED');
@@ -91,110 +95,149 @@ class GDriveMirrorSync extends Command
                 'teamDriveId' => $config['teamDriveId'],
             ]);
 
-            // Internal local base path for mirroring
             $baseLocalPath = storage_path('app/google_drive_mirror');
-
-            // Connect to Google Drive disk (configured dynamically)
             $googleDisk = Storage::disk("google_drive_mirror");
-
             $targetFolders = (array) $this->argument('folders');
 
-            foreach ($targetFolders as $folder) {
-                $this->info("================================================================");
-                $this->info("🚀 SCANNING GOOGLE DRIVE: {$folder}");
-                $this->info("================================================================");
-                Log::channel($this->log_channel)->info("GDrive Sync: Scanning folder: {$folder}");
+            $stats = [
+                'processed' => 0,
+                'updated' => 0,
+                'skipped' => 0,
+                'deleted' => 0,
+                'errors' => 0,
+                'folders' => 0,
+            ];
 
-                // Recursive listing to capture the entire directory tree from Google Drive
-                $contents = collect($googleDisk->listContents($folder, true));
-                $this->info("Found " . $contents->count() . " items within '{$folder}'");
-                Log::channel($this->log_channel)->info("GDrive Sync: Found {$contents->count()} items in '{$folder}'");
+            foreach ($targetFolders as $baseFolder) {
+                $this->info("\n🚀 SCANNING GOOGLE DRIVE: {$baseFolder}");
+                Log::channel($this->log_channel)->info("GDrive Sync: Scanning folder: {$baseFolder}");
 
-                foreach ($contents as $item) {
-                    $relativePath = $item['path'];
+                // 1. Fetch contents (Recursive)
+                // We use an iterator directly to handle large volumes of data efficiently
+                $iterator = $googleDisk->listContents($baseFolder, true);
+                $remoteItems = []; // Used for cleanup logic if --delete is on
+
+                $this->info("Fetching remote item list...");
+                foreach ($iterator as $item) {
+                    $remoteItems[$item['path']] = $item;
+                }
+
+                $totalItems = count($remoteItems);
+                $this->info("Found {$totalItems} items. Starting synchronization...");
+
+                $bar = $this->output->createProgressBar($totalItems);
+                $bar->start();
+
+                foreach ($remoteItems as $relativePath => $item) {
                     $absoluteLocalPath = "{$baseLocalPath}/{$relativePath}";
-                    $type = $item['type']; // dir or file
+                    $type = $item['type'];
+                    $stats['processed']++;
 
-                    // Access metadata (compatible with both Flysystem V1 array and V2/V3 object structures)
+                    // Access metadata correctly based on V1/V2 Flysystem
                     $meta = method_exists($item, 'extraMetadata') ? $item->extraMetadata() : $item;
-                    $itemId = $meta['id'] ?? 'unknown_id';
-                    $mimeType = $meta['mimeType'] ?? 'unknown_mimetype';
+                    $itemId = $meta['id'] ?? 'unknown';
+                    $mimeType = $meta['mimeType'] ?? 'unknown';
+                    $remoteTimestamp = $item['timestamp'] ?? ($item instanceof \League\Flysystem\StorageAttributes ? $item->lastModified() : 0);
+                    $remoteSize = $item['size'] ?? ($item instanceof \League\Flysystem\FileAttributes ? $item->fileSize() : 0);
 
-                    // 1. Mirror Directory Structure
                     if ($type === 'dir') {
                         if (!File::isDirectory($absoluteLocalPath)) {
                             File::makeDirectory($absoluteLocalPath, 0755, true);
-                            $this->info("📁 Folder Created: {$relativePath}");
-                            Log::channel($this->log_channel)->info("GDrive Sync: Created local directory: {$relativePath}");
+                            $stats['folders']++;
                         }
+                        $bar->advance();
                         continue;
                     }
 
                     if ($type === 'file') {
-                        // Ensure parent directory exists locally
                         File::ensureDirectoryExists(dirname($absoluteLocalPath));
 
-                        // 2. Determine if it's a Google Native App (Doc, Sheet, Slide, etc.)
                         $isGoogleNative = str_starts_with($mimeType, 'application/vnd.google-apps.');
+                        $targetLocalPath = $isGoogleNative ? $absoluteLocalPath . ".pdf" : $absoluteLocalPath;
 
-                        Log::channel($this->log_channel)->info("GDrive Sync: Processing file", [
-                            'path' => $relativePath,
-                            'id' => $itemId,
-                            'mimeType' => $mimeType,
-                            'isGoogleNative' => $isGoogleNative
-                        ]);
+                        // Delta Sync Check: Skip if file exists and hasn't changed
+                        if (!$this->option('force') && File::exists($targetLocalPath)) {
+                            $localTimestamp = File::lastModified($targetLocalPath);
 
-                        if ($isGoogleNative) {
-                            // 3. Google Native: Export to PDF (preserving path and filename + .pdf extension)
-                            $this->info("📄 Exporting (PDF): {$relativePath}");
-                            $exportPath = $absoluteLocalPath . ".pdf";
+                            // For Google Native, we can't easily compare size because export varies, 
+                            // so we rely mostly on timestamp.
+                            if ($localTimestamp >= $remoteTimestamp) {
+                                $stats['skipped']++;
+                                $bar->advance();
+                                continue;
+                            }
+                        }
 
-                            try {
+                        // Process File (Export or Download)
+                        try {
+                            if ($isGoogleNative) {
                                 /** @var \Google\Service\Drive $service */
                                 $service = $googleDisk->getAdapter()->getService();
                                 $export = $service->files->export($itemId, 'application/pdf');
                                 $rawData = $export->getBody()->getContents();
-
-                                File::put($exportPath, $rawData);
-                                $this->info("✅ Successfully exported: " . basename($exportPath));
-                                Log::channel($this->log_channel)->info("GDrive Sync: Exported native file to PDF", ['path' => $exportPath]);
-                            } catch (\Throwable $e) {
-                                $this->error("❌ ERROR Exporting {$relativePath}: " . $e->getMessage());
-                                Log::channel($this->log_channel)->error("GDrive Sync: Export Error", [
-                                    'path' => $relativePath,
-                                    'id' => $itemId,
-                                    'message' => $e->getMessage()
-                                ]);
-                            }
-                        } else {
-                            // 4. Binary File: Direct download (Preserve Path and Filename exactly as on Google)
-                            $this->info("💾 Downloading: {$relativePath}");
-
-                            try {
+                                File::put($targetLocalPath, $rawData);
+                            } else {
                                 $rawData = $googleDisk->get($relativePath);
-                                File::put($absoluteLocalPath, $rawData);
-                                $this->info("✅ Successfully saved: " . basename($absoluteLocalPath));
-                                Log::channel($this->log_channel)->info("GDrive Sync: Downloaded binary file", ['path' => $relativePath]);
-                            } catch (\Throwable $e) {
-                                $this->error("❌ ERROR Downloading {$relativePath}: " . $e->getMessage());
-                                Log::channel($this->log_channel)->error("GDrive Sync: Download Error", [
-                                    'path' => $relativePath,
-                                    'id' => $itemId,
-                                    'message' => $e->getMessage()
-                                ]);
+                                File::put($targetLocalPath, $rawData);
                             }
+
+                            $stats['updated']++;
+                            // Explicitly set timestamp to match remote
+                            if ($remoteTimestamp > 0) {
+                                @touch($targetLocalPath, $remoteTimestamp);
+                            }
+                        } catch (\Throwable $e) {
+                            $stats['errors']++;
+                            Log::channel($this->log_channel)->error("GDrive Sync Error: {$relativePath}", ['msg' => $e->getMessage()]);
+                        }
+                    }
+                    $bar->advance();
+                }
+                $bar->finish();
+                $this->info("");
+
+                // 2. Cleanup Logic (--delete)
+                if ($this->option('delete')) {
+                    $this->info("Cleaning up local orphans for '{$baseFolder}'...");
+                    $localFiles = File::allFiles("{$baseLocalPath}/{$baseFolder}");
+                    foreach ($localFiles as $file) {
+                        $fullPath = $file->getRealPath();
+                        $localRelativePath = Str::after($fullPath, $baseLocalPath . '/');
+
+                        // Handle the .pdf suffix for native exports when checking existence
+                        $checkPath = $localRelativePath;
+                        if (Str::endsWith($localRelativePath, '.pdf')) {
+                            $potentialNativePath = Str::beforeLast($localRelativePath, '.pdf');
+                            if (isset($remoteItems[$potentialNativePath])) {
+                                $checkPath = $potentialNativePath;
+                            }
+                        }
+
+                        if (!isset($remoteItems[$checkPath])) {
+                            File::delete($fullPath);
+                            $stats['deleted']++;
+                            $this->line("🗑️ Deleted local orphan: {$localRelativePath}");
                         }
                     }
                 }
             }
 
-            $this->info("\n================================================================");
-            $this->info("✨ Mirroring process completed successfully.");
+            // FINAL REPORT
+            $this->info("\n" . str_repeat("=", 50));
+            $this->info("✨ MIRROR SYNC COMPLETED");
+            $this->info(str_repeat("=", 50));
+            $this->comment("📂 Folders Created:  {$stats['folders']}");
+            $this->comment("✅ Files Updated:    {$stats['updated']}");
+            $this->comment("⏭️ Files Skipped:    {$stats['skipped']}");
+            if ($this->option('delete')) {
+                $this->comment("🗑️ Files Deleted:    {$stats['deleted']}");
+            }
+            $this->comment("❌ Errors encountered: {$stats['errors']}");
+            $this->info(str_repeat("=", 50));
             $this->info("Local files at: {$baseLocalPath}");
-            $this->info("================================================================");
 
         } catch (\Throwable $th) {
-            $this->error("💥 Fatal Error: " . $th->getMessage());
+            $this->error("\n💥 Fatal Error: " . $th->getMessage());
             Log::channel($this->log_channel)->error("GDrive Mirror Fatal Error", [
                 'message' => $th->getMessage(),
                 'trace' => $th->getTraceAsString()
