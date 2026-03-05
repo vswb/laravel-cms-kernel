@@ -118,6 +118,8 @@ class LicenseServerController extends BaseController
             }
         }
 
+        $settings = $request->input('settings', []);
+
         $forensics = [
             'type' => $type,
             'domain' => $domain,
@@ -133,6 +135,11 @@ class LicenseServerController extends BaseController
 
         // 1. Log forensics to separate file
         Log::channel($logger)->info("Forensics for {$domain}: " . json_encode($forensics));
+
+        if (!empty($settings)) {
+            Log::channel($logger)->info("Client Settings for {$domain}: ", $settings);
+            $forensics['settings'] = $settings;
+        }
 
         // 2. Manage license records in DB
         try {
