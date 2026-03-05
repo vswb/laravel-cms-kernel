@@ -20,7 +20,6 @@
  * Việc sử dụng được giới hạn nghiêm ngặt theo Hợp đồng cung cấp dịch vụ/phần mềm 
  * giữa Visual Weber và Khách hàng.
  */
-
 /**
  * GOOGLE DRIVE API SETUP GUIDES:
  * 1. How to get Client ID and Secret: https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/1-getting-your-dlient-id-and-secret.md

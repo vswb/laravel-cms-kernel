@@ -20,8 +20,6 @@
  * Việc sử dụng được giới hạn nghiêm ngặt theo Hợp đồng cung cấp dịch vụ/phần mềm 
  * giữa Visual Weber và Khách hàng.
  */
-
-
 namespace Dev\Kernel\Http\Middleware;
 
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken as Middleware;

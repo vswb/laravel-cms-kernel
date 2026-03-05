@@ -20,7 +20,6 @@
  * Việc sử dụng được giới hạn nghiêm ngặt theo Hợp đồng cung cấp dịch vụ/phần mềm 
  * giữa Visual Weber và Khách hàng.
  */
- 
 // app/Console/Commands/SetupGitHookCommand.php
 
 namespace Dev\Kernel\Commands;

@@ -20,8 +20,6 @@
  * Việc sử dụng được giới hạn nghiêm ngặt theo Hợp đồng cung cấp dịch vụ/phần mềm 
  * giữa Visual Weber và Khách hàng.
  */
-
-
 namespace Dev\Kernel\Traits;
 
 use Illuminate\Support\Facades\Log;
