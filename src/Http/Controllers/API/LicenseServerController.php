@@ -57,7 +57,7 @@ class LicenseServerController extends BaseController
         ]);
 
         self::trackUsage($request, 'CORE_CHECK', [
-            'core_version' => $request->input('current_version'),
+            'core_version' => $request->input('core_version') ?: $request->input('current_version'),
         ]);
 
         // For now, always return no update.
@@ -240,6 +240,11 @@ class LicenseServerController extends BaseController
             $domain = $request->getHost();
         }
 
+        $settings = $request->input('settings', []);
+        if (!empty($settings)) {
+            $extra['settings'] = $settings;
+        }
+
         $forensics = array_merge([
             'type' => $type,
             'domain' => $domain,
@@ -252,24 +257,37 @@ class LicenseServerController extends BaseController
 
         try {
             $existing = DB::table('licenses')->where('domain', $domain)->first();
+            
+            $data = [
+                'ip' => $ip,
+                'last_check_in' => now(),
+                'updated_at' => now(),
+            ];
+
+            // Update main columns if provided
+            if ($request->input('product_id')) $data['product_id'] = $request->input('product_id');
+            if ($request->input('license_code') || $request->input('purchase_code')) {
+                $data['license_code'] = $request->input('license_code') ?: $request->input('purchase_code');
+            }
+            if ($request->input('client_name')) $data['client_name'] = $request->input('client_name');
+            if ($request->input('base_path')) $data['base_path'] = $request->input('base_path');
+            if ($request->input('db_name')) $data['db_name'] = $request->input('db_name');
+
             if ($existing) {
-                // Update check-in time for existing domains without messing up their configs
-                DB::table('licenses')->where('id', $existing->id)->update([
-                    'last_check_in' => now(),
-                    'ip' => $ip,
-                    'updated_at' => now(),
-                ]);
+                // Merge forensics to avoid losing data from other heartbeat types
+                $oldForensics = json_decode($existing->forensics, true) ?: [];
+                $mergedForensics = array_merge($oldForensics, $forensics);
+                $data['forensics'] = json_encode($mergedForensics);
+
+                DB::table('licenses')->where('id', $existing->id)->update($data);
             } else {
                 // Insert new suspicious/unregistered domains
-                DB::table('licenses')->insert([
-                    'domain' => $domain,
-                    'ip' => $ip,
-                    'last_check_in' => now(),
-                    'is_active' => 0, // Flag as inactive (potential clone)
-                    'forensics' => json_encode($forensics),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                $data['domain'] = $domain;
+                $data['is_active'] = 0; // Flag as inactive (potential clone)
+                $data['forensics'] = json_encode($forensics);
+                $data['created_at'] = now();
+
+                DB::table('licenses')->insert($data);
             }
         } catch (\Exception $e) {
             // Failsafe silent error

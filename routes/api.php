@@ -27,8 +27,7 @@ use Illuminate\Support\Facades\Route;
 #region General routes, customize routes. To avoid modification core platform
 Route::group([
     'middleware' => [
-        'app.middleware.empty-to-null',
-        'api'
+        'app.middleware.empty-to-null'
     ],
     'prefix' => 'api/v1',
     'namespace' => 'Dev\Api\Http\Controllers',
@@ -104,7 +103,7 @@ Route::group([
 #endregion
 
 Route::group([
-    'middleware' => ['api'],
+    'middleware' => [],
     'prefix' => 'api/v1',
     'namespace' => 'Dev\Kernel\Http\Controllers\API\v1',
     'as' => 'kernel.api.v1.'
@@ -124,7 +123,7 @@ Route::group([
     );
 });
 Route::group([
-    'middleware' => ['api'],
+    'middleware' => [],
     'prefix' => 'api/v1',
     'namespace' => 'Dev\Kernel\Http\Controllers\API\v1',
     'as' => 'kernel.api.v1.'
@@ -147,7 +146,7 @@ Route::group([
 Route::group([
     'prefix' => 'api',
     'namespace' => 'Dev\Kernel\Http\Controllers\API',
-    'middleware' => ['api'],
+    'middleware' => [],
 ], function () {
     if (config('core.base.general.is_license_server')) {
         Route::post('activate_license', 'LicenseServerController@activate');
