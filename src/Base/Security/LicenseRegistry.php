@@ -39,7 +39,7 @@ class LicenseRegistry
      */
     public static function getLicenseServerUrl(): string
     {
-        return 'https://license.pull.vn';
+        return 'https://license.fsofts.com';
     }
 
     public static function getServerUrl(): string
@@ -53,5 +53,12 @@ class LicenseRegistry
     public static function getLicenseKey(): string
     {
         return 'CAF4B17F6D3F656125F9';
+    }
+    /**
+     * Get the marketplace API bridge URL
+     */
+    public static function getMarketplaceUrl(): string
+    {
+        return rtrim(self::getLicenseServerUrl() ?: 'https://license.fsofts.com', '/') . '/api/v1';
     }
 }

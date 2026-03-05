@@ -65,6 +65,21 @@ Route::group([
             'message' => 'The system is already running the latest version. For further assistance, please contact us at toan@visualweber.com or call +84 943 999 819',
         ]);
     })->name('license.check');
+
+    Route::get('products', function (): JsonResponse {
+        return response()->json([
+            'error' => false,
+            'data' => [],
+            'message' => 'Success',
+        ]);
+    });
+
+    Route::get('products/{id}', function (): JsonResponse {
+        return response()->json([
+            'error' => true,
+            'message' => 'Product not found or marketplace is undergoing maintenance.',
+        ]);
+    });
     #endregion
 });
 #endregion
