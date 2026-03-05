@@ -109,3 +109,15 @@ Route::group([
         }
     );
 });
+
+Route::group([
+    'prefix' => 'api',
+    'namespace' => 'Dev\Kernel\Http\Controllers\API',
+    'middleware' => ['api'],
+], function () {
+    if (config('core.base.general.is_license_server')) {
+        Route::post('activate_license', 'LicenseServerController@activate');
+        Route::post('verify_license', 'LicenseServerController@verify');
+        Route::post('check_connection_ext', 'LicenseServerController@checkConnection');
+    }
+});
