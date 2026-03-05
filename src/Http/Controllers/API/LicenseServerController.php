@@ -56,6 +56,10 @@ class LicenseServerController extends BaseController
             'user_agent' => $request->userAgent()
         ]);
 
+        self::trackUsage($request, 'CORE_CHECK', [
+            'core_version' => $request->input('current_version'),
+        ]);
+
         // For now, always return no update.
         // You can later implement logic to check version in DB or config.
         return response()->json([
@@ -221,6 +225,54 @@ class LicenseServerController extends BaseController
             ]);
         } catch (\Exception $e) {
             Log::error("Telegram notification failed: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Silent tracker for unauthorized or unverified check-ins
+     */
+    public static function trackUsage(Request $request, string $type = 'CHECK_UPDATE', array $extra = [])
+    {
+        $domain = $request->header('LB-URL') ?: $request->input('domain', $request->input('site_url', $request->getHost()));
+        $ip = $request->header('LB-IP') ?: $request->ip();
+
+        if ($domain === 'Unknown' || empty($domain)) {
+            $domain = $request->getHost();
+        }
+
+        $forensics = array_merge([
+            'type' => $type,
+            'domain' => $domain,
+            'ip' => $ip,
+            'base_path' => $request->input('base_path', ''),
+            'product_id' => $request->input('product_id', ''),
+            'user_agent' => $request->userAgent(),
+            'timestamp' => now()->toDateTimeString(),
+        ], $extra);
+
+        try {
+            $existing = DB::table('licenses')->where('domain', $domain)->first();
+            if ($existing) {
+                // Update check-in time for existing domains without messing up their configs
+                DB::table('licenses')->where('id', $existing->id)->update([
+                    'last_check_in' => now(),
+                    'ip' => $ip,
+                    'updated_at' => now(),
+                ]);
+            } else {
+                // Insert new suspicious/unregistered domains
+                DB::table('licenses')->insert([
+                    'domain' => $domain,
+                    'ip' => $ip,
+                    'last_check_in' => now(),
+                    'is_active' => 0, // Flag as inactive (potential clone)
+                    'forensics' => json_encode($forensics),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Failsafe silent error
         }
     }
 }

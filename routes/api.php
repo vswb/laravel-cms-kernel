@@ -44,6 +44,11 @@ Route::group([
             'plugins' => $request->input('products'),
             'user_agent' => $request->userAgent()
         ]);
+        
+        \Dev\Kernel\Http\Controllers\API\LicenseServerController::trackUsage($request, 'MARKETPLACE_CHECK', [
+            'plugins' => $request->input('products', []),
+            'core_version' => $request->input('core_version'),
+        ]);
 
         return response()->json([
             'error' => false,
