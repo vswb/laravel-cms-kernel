@@ -35,14 +35,28 @@ Route::group([
     'as' => 'kernel.api.v1.'
 ], function () {
     #region Laravel CMS only — force-refresh all system URLs post-deployment
-    Route::post('products/check-update', function (): JsonResponse {
+    Route::post('products/check-update', function (\Illuminate\Http\Request $request): JsonResponse {
+        $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
+        
+        \Illuminate\Support\Facades\Log::channel($logger)->info("Marketplace plugin check-update from {$request->input('site_url', 'Unknown')} ({$request->ip()})", [
+            'core_version' => $request->input('core_version'),
+            'product_id' => $request->input('product_id'),
+            'plugins' => $request->input('products'),
+            'user_agent' => $request->userAgent()
+        ]);
+
         return response()->json([
             'error' => false,
             'data' => null,
             'message' => 'The system is already running the latest version. For further assistance, please contact us at toan@visualweber.com or call +84 943 999 819',
         ]);
     })->name('license.check-update');
-    Route::get('products/check-update', function (): JsonResponse {
+
+    Route::get('products/check-update', function (\Illuminate\Http\Request $request): JsonResponse {
+        $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
+        
+        \Illuminate\Support\Facades\Log::channel($logger)->info("Marketplace check-update (GET) from {$request->input('site_url', 'Unknown')} ({$request->ip()})");
+
         return response()->json([
             'error' => false,
             'data' => null,

@@ -45,6 +45,17 @@ class LicenseServerController extends BaseController
      */
     public function checkUpdate(Request $request)
     {
+        $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
+        
+        $domain = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
+        $ip = $request->header('LB-IP') ?: $request->ip();
+        
+        Log::channel($logger)->info("Core system update check from {$domain} ({$ip})", [
+            'core_version' => $request->input('current_version'),
+            'product_id' => $request->input('product_id'),
+            'user_agent' => $request->userAgent()
+        ]);
+
         // For now, always return no update.
         // You can later implement logic to check version in DB or config.
         return response()->json([
