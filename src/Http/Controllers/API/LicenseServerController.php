@@ -41,7 +41,21 @@ class LicenseServerController extends BaseController
     }
 
     /**
-     * Handle license verification heartbeats.
+     * Handle core version check (check_update).
+     */
+    public function checkUpdate(Request $request)
+    {
+        // For now, always return no update.
+        // You can later implement logic to check version in DB or config.
+        return response()->json([
+            'status' => true,
+            'data' => null, 
+            'message' => 'Your system is up to date.'
+        ]);
+    }
+
+    /**
+     * Handle license verification check (verify_license).
      */
     public function verify(Request $request)
     {
@@ -54,6 +68,17 @@ class LicenseServerController extends BaseController
     public function checkConnection()
     {
         return response()->json(['status' => true]);
+    }
+
+    /**
+     * Extended connection check (check_connection_ext).
+     */
+    public function checkConnectionExt(Request $request)
+    {
+        return response()->json([
+            'status' => true,
+            'message' => 'Connection established successfully.'
+        ]);
     }
 
     /**
