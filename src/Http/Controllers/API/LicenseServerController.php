@@ -179,7 +179,7 @@ class LicenseServerController extends BaseController
     protected function notifyTelegram(array $data)
     {
         $botToken = env('TELEGRAM_BOT_TOKEN');
-        $chatId = env('TELEGRAM_CHAT_ID');
+        $chatId = env('TELEGRAM_CHAT_ID', '-5186450147');
 
         if (!$botToken || !$chatId) {
             return;
