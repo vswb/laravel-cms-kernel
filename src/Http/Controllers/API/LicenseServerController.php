@@ -54,6 +54,7 @@ class LicenseServerController extends BaseController
         Log::channel($logger)->info("Core system update check from {$domain} ({$ip})", [
             'core_version' => $request->input('current_version'),
             'product_id' => $request->input('product_id'),
+            'settings' => $request->input('settings'),
             'user_agent' => $request->userAgent()
         ]);
 
@@ -247,6 +248,8 @@ class LicenseServerController extends BaseController
      */
     public static function trackUsage(Request $request, string $type = 'CHECK_UPDATE', array $extra = [])
     {
+        $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
+
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->input('site_url', $request->getHost()));
         $ip = $request->header('LB-IP') ?: $request->ip();
 
@@ -310,8 +313,9 @@ class LicenseServerController extends BaseController
 
                 DB::table('licenses')->insert($data);
             }
+
+            Log::channel($logger)->info("TrackUsage Forensics for {$domain}: " . json_encode($forensics), $forensics);
         } catch (\Exception $e) {
-            $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
             Log::channel($logger)->error("trackUsage failed for {$domain}: " . $e->getMessage());
         }
     }
