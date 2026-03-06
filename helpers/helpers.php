@@ -1894,18 +1894,20 @@ if (!function_exists('apps_telegram_send_message')) {
             if (blank($logger))
                 $logger = 'daily';
 
-            if (!in_array(app()->environment(), ['production', 'prod'], true)) { // giới hạn gửi ở production
+            if (!in_array(app()->environment(), ['production', 'prod'], true) && !env('TELEGRAM_NOTIFY_ENABLE', false)) { // giới hạn gửi ở production, hoặc nếu bật force notify
                 Log::channel($logger)->info('[Telegram::Skipped]', [
-                    'env' => app()->environment()
+                    'env' => app()->environment(),
+                    'reason' => 'Not in production and TELEGRAM_NOTIFY_ENABLE is not true'
                 ]);
                 return;
             }
+
 
             $telegramDfOptions = [
                 'parse_mode' => 'HTML',
                 'disable_web_page_preview' => true,
                 'link_preview_options' => ['is_disabled' => true],
-                'chat_id' => config("telegram.bots.{$channel}.chat_id", '-1001541977083')
+                'chat_id' => env('TELEGRAM_CHAT_ID', config("telegram.bots.{$channel}.chat_id", '-1001541977083'))
             ];
 
             if (!blank($configs)) {
@@ -1924,7 +1926,8 @@ if (!function_exists('apps_telegram_send_message')) {
                 4096
             );
 
-            $telegram = new \Telegram\Bot\Api(); // getenv TELEGRAM_BOT_TOKEN, it's working
+            $botToken = config("telegram.bots.{$channel}.token", env('TELEGRAM_BOT_TOKEN'));
+            $telegram = new \Telegram\Bot\Api($botToken); // getenv TELEGRAM_BOT_TOKEN, it's working
             $telegram->sendMessage($telegramDfOptions);
         } catch (Throwable $th) {
             Log::channel($logger)->error(__FUNCTION__, (array) $th->getMessage());
