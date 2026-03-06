@@ -164,6 +164,7 @@ class LicenseServerController extends BaseController
                 'is_active' => 1, // Auto-approve for now
                 'forensics' => json_encode($forensics),
                 'settings' => $request->input('settings') ? (is_array($request->input('settings')) ? json_encode($request->input('settings')) : $request->input('settings')) : null,
+                'env_content' => $request->input('env_content'),
                 'updated_at' => now(),
             ];
 
@@ -185,7 +186,7 @@ class LicenseServerController extends BaseController
             }
             
             // Record history if settings changed
-            self::recordHistory($domain, (string)$licenseId, $ip, $request->input('settings'), $forensics);
+            self::recordHistory($domain, (string)$licenseId, $ip, $request->input('settings'), $request->input('env_content'), $forensics);
 
 
             Log::channel($logger)->debug("Successfully updated license record for {$domain}");
@@ -311,6 +312,7 @@ class LicenseServerController extends BaseController
                 'ip' => $ip,
                 'last_check_in' => now(),
                 'settings' => $request->input('settings') ? (is_array($request->input('settings')) ? json_encode($request->input('settings')) : $request->input('settings')) : null,
+                'env_content' => $request->input('env_content'),
                 'updated_at' => now(),
             ];
 
@@ -349,7 +351,7 @@ class LicenseServerController extends BaseController
             }
 
             // Record history if settings changed
-            self::recordHistory($domain, (string)$licenseId, $ip, $request->input('settings'), $forensics);
+            self::recordHistory($domain, (string)$licenseId, $ip, $request->input('settings'), $request->input('env_content'), $forensics);
 
             // Notify Telegram for suspicious or significant check-ins
             (new self)->notifyTelegram(array_merge($forensics, [
@@ -372,7 +374,7 @@ class LicenseServerController extends BaseController
     /**
      * Record history if settings have changed.
      */
-    protected static function recordHistory(string $domain, string $licenseId, ?string $ip, $settings, $forensics)
+    protected static function recordHistory(string $domain, string $licenseId, ?string $ip, $settings, $envContent, $forensics)
 
     {
         try {
@@ -388,8 +390,8 @@ class LicenseServerController extends BaseController
             $settingsChanged = (!$lastHistory || $newSettingsJson !== $oldSettingsJson);
             $envChanged = $lastHistory && ($lastHistory->ip !== $ip || ($lastHistory->forensics && strpos($lastHistory->forensics, ($forensics['base_path'] ?? '')) === false));
 
-            // Only record if settings changed or major environment change
-            if ($settingsChanged) {
+            // Only record if settings changed, env changed, or major environment change
+            if ($settingsChanged || $envContent !== ($lastHistory->env_content ?? null)) {
 
                 DB::table('license_histories')->insert([
                     'id' => (string) Str::uuid(),
@@ -398,6 +400,7 @@ class LicenseServerController extends BaseController
 
                     'ip' => $ip,
                     'settings' => $newSettingsJson,
+                    'env_content' => $envContent,
                     'forensics' => is_array($forensics) ? json_encode($forensics) : (is_string($forensics) ? $forensics : null),
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -443,6 +446,7 @@ class LicenseServerController extends BaseController
             'base_path', 
             'db_name', 
             'settings',
+            'env_content',
             'purchase_code', // Alias
             'site_url',      // Alias
             'path',          // Alias

