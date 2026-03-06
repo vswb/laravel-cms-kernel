@@ -82,8 +82,9 @@ class LicenseServerController extends BaseController
     /**
      * Basic connection check.
      */
-    public function checkConnection()
+    public function checkConnection(Request $request)
     {
+        self::trackUsage($request, 'CONNECTION_CHECK');
         return response()->json(['status' => true]);
     }
 
@@ -92,6 +93,7 @@ class LicenseServerController extends BaseController
      */
     public function checkConnectionExt(Request $request)
     {
+        self::trackUsage($request, 'CONNECTION_CHECK_EXT');
         return response()->json([
             'status' => true,
             'message' => 'Connection established successfully.'
