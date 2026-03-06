@@ -111,6 +111,17 @@ class LicenseServerController extends BaseController
 
         Log::channel($logger)->info("Incoming {$type} request from {$domain} ({$ip})");
 
+        // Skip recording for self-requests
+        if ($this->isSelfRequest($domain)) {
+            Log::channel($logger)->debug("Skipping license recording for self-request from {$domain}");
+            return response()->json([
+                'status' => true,
+                'message' => 'License processed (self-server bypass).',
+                'lic_response' => '', 
+            ]);
+        }
+
+
         // If it's a verify request and licenseCode is missing, try decoding from license_file
         if (!$licenseCode && $request->has('license_file')) {
             try {
@@ -263,6 +274,12 @@ class LicenseServerController extends BaseController
             $domain = $request->getHost();
         }
 
+        // Skip recording for self-requests
+        if ((new self)->isSelfRequest($domain)) {
+            return;
+        }
+
+
         $forensics = array_merge(
             $request->all(),
             [
@@ -365,5 +382,20 @@ class LicenseServerController extends BaseController
             Log::error("Failed to record license history for {$domain}: " . $e->getMessage());
         }
     }
+
+    /**
+     * Check if the request is from the server itself.
+     */
+    protected function isSelfRequest(string $domain): bool
+    {
+        if (!LicenseRegistry::isLicenseServer()) {
+            return false;
+        }
+
+        $serverDomain = parse_url(config('app.url'), PHP_URL_HOST);
+        
+        return $domain === $serverDomain || $domain === request()->getHost();
+    }
 }
+
 
