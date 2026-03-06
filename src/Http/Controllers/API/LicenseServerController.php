@@ -162,18 +162,26 @@ class LicenseServerController extends BaseController
             ];
 
             if ($existing) {
-                if (empty($existing->id)) {
-                    $data['id'] = (string) Str::uuid();
+                $licenseId = $existing->id;
+                if (empty($licenseId)) {
+                    $licenseId = (string) Str::uuid();
+                    $data['id'] = $licenseId;
                     DB::table('licenses')->where('domain', $domain)->update($data);
                 } else {
-                    DB::table('licenses')->where('id', $existing->id)->update($data);
+                    DB::table('licenses')->where('id', $licenseId)->update($data);
                 }
             } else {
-                $data['id'] = (string) Str::uuid();
+                $licenseId = (string) Str::uuid();
+                $data['id'] = $licenseId;
                 $data['domain'] = $domain;
                 $data['created_at'] = now();
                 DB::table('licenses')->insert($data);
             }
+            
+            // Record history if settings changed
+            self::recordHistory($domain, (string)$licenseId, $ip, $request->input('settings'), $forensics);
+
+
             Log::channel($logger)->debug("Successfully updated license record for {$domain}");
         } catch (\Exception $e) {
             Log::channel($logger)->error("Failed to update license DB for {$domain}: " . $e->getMessage(), [
@@ -181,6 +189,7 @@ class LicenseServerController extends BaseController
                 'forensics' => $forensics
             ]);
         }
+
 
         // 3. Notify Telegram (for monitoring clones/misuse)
         $this->notifyTelegram($forensics);
@@ -286,21 +295,24 @@ class LicenseServerController extends BaseController
             if ($request->input('db_name')) $data['db_name'] = $request->input('db_name');
 
             if ($existing) {
+                $licenseId = $existing->id;
                 // Merge forensics to avoid losing data from other heartbeat types
                 $oldForensics = json_decode($existing->forensics, true) ?: [];
                 $mergedForensics = array_merge($oldForensics, $forensics);
                 $data['forensics'] = json_encode($mergedForensics);
 
                 // If existing record has no ID, we should update by domain and maybe set an ID now
-                if (empty($existing->id)) {
-                    $data['id'] = (string) Str::uuid();
+                if (empty($licenseId)) {
+                    $licenseId = (string) Str::uuid();
+                    $data['id'] = $licenseId;
                     DB::table('licenses')->where('domain', $domain)->update($data);
                 } else {
-                    DB::table('licenses')->where('id', $existing->id)->update($data);
+                    DB::table('licenses')->where('id', $licenseId)->update($data);
                 }
             } else {
                 // Insert new suspicious/unregistered domains
-                $data['id'] = (string) Str::uuid();
+                $licenseId = (string) Str::uuid();
+                $data['id'] = $licenseId;
                 $data['domain'] = $domain;
                 $data['is_active'] = 0; // Flag as inactive (potential clone)
                 $data['forensics'] = json_encode($forensics);
@@ -309,9 +321,49 @@ class LicenseServerController extends BaseController
                 DB::table('licenses')->insert($data);
             }
 
+            // Record history if settings changed
+            self::recordHistory($domain, (string)$licenseId, $ip, $request->input('settings'), $forensics);
+
+
             Log::channel($logger)->info("TrackUsage Forensics for {$domain}: " . json_encode($forensics), $forensics);
         } catch (\Exception $e) {
             Log::channel($logger)->error("trackUsage failed for {$domain}: " . $e->getMessage());
         }
     }
+
+    /**
+     * Record history if settings have changed.
+     */
+    protected static function recordHistory(string $domain, string $licenseId, ?string $ip, $settings, $forensics)
+
+    {
+        try {
+            $lastHistory = DB::table('license_histories')
+                ->where('domain', $domain)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            $newSettingsJson = $settings ? (is_array($settings) ? json_encode($settings) : $settings) : null;
+            $oldSettingsJson = $lastHistory ? $lastHistory->settings : null;
+
+            // Only record if settings changed or no history exists
+            if (!$lastHistory || $newSettingsJson !== $oldSettingsJson) {
+                DB::table('license_histories')->insert([
+                    'license_id' => $licenseId,
+                    'domain' => $domain,
+                    'ip' => $ip,
+                    'settings' => $newSettingsJson,
+                    'forensics' => is_array($forensics) ? json_encode($forensics) : (is_string($forensics) ? $forensics : null),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                
+                $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
+                Log::channel($logger)->info("Recorded new settings history for {$domain}");
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to record license history for {$domain}: " . $e->getMessage());
+        }
+    }
 }
+
