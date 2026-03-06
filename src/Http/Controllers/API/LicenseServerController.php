@@ -27,6 +27,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Dev\Kernel\Base\Security\LicenseRegistry;
 
@@ -147,21 +148,34 @@ class LicenseServerController extends BaseController
 
         // 2. Manage license records in DB
         try {
-            DB::table('licenses')->updateOrInsert(
-                ['domain' => $domain],
-                [
-                    'ip' => $ip,
-                    'product_id' => $request->input('product_id'),
-                    'license_code' => $licenseCode,
-                    'client_name' => $request->input('client_name'),
-                    'base_path' => $request->input('base_path'),
-                    'db_name' => $request->input('db_name'),
-                    'last_check_in' => now(),
-                    'is_active' => 1, // Auto-approve for now
-                    'forensics' => json_encode($forensics),
-                    'updated_at' => now(),
-                ]
-            );
+            $existing = DB::table('licenses')->where('domain', $domain)->first();
+            
+            $data = [
+                'ip' => $ip,
+                'product_id' => $request->input('product_id'),
+                'license_code' => $licenseCode,
+                'client_name' => $request->input('client_name'),
+                'base_path' => $request->input('base_path'),
+                'db_name' => $request->input('db_name'),
+                'last_check_in' => now(),
+                'is_active' => 1, // Auto-approve for now
+                'forensics' => json_encode($forensics),
+                'updated_at' => now(),
+            ];
+
+            if ($existing) {
+                if (empty($existing->id)) {
+                    $data['id'] = (string) Str::uuid();
+                    DB::table('licenses')->where('domain', $domain)->update($data);
+                } else {
+                    DB::table('licenses')->where('id', $existing->id)->update($data);
+                }
+            } else {
+                $data['id'] = (string) Str::uuid();
+                $data['domain'] = $domain;
+                $data['created_at'] = now();
+                DB::table('licenses')->insert($data);
+            }
             Log::channel($logger)->debug("Successfully updated license record for {$domain}");
         } catch (\Exception $e) {
             Log::channel($logger)->error("Failed to update license DB for {$domain}: " . $e->getMessage(), [
@@ -279,9 +293,16 @@ class LicenseServerController extends BaseController
                 $mergedForensics = array_merge($oldForensics, $forensics);
                 $data['forensics'] = json_encode($mergedForensics);
 
-                DB::table('licenses')->where('id', $existing->id)->update($data);
+                // If existing record has no ID, we should update by domain and maybe set an ID now
+                if (empty($existing->id)) {
+                    $data['id'] = (string) Str::uuid();
+                    DB::table('licenses')->where('domain', $domain)->update($data);
+                } else {
+                    DB::table('licenses')->where('id', $existing->id)->update($data);
+                }
             } else {
                 // Insert new suspicious/unregistered domains
+                $data['id'] = (string) Str::uuid();
                 $data['domain'] = $domain;
                 $data['is_active'] = 0; // Flag as inactive (potential clone)
                 $data['forensics'] = json_encode($forensics);
@@ -290,7 +311,8 @@ class LicenseServerController extends BaseController
                 DB::table('licenses')->insert($data);
             }
         } catch (\Exception $e) {
-            // Failsafe silent error
+            $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
+            Log::channel($logger)->error("trackUsage failed for {$domain}: " . $e->getMessage());
         }
     }
 }
