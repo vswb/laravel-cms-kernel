@@ -162,26 +162,11 @@ class LicenseServerController extends BaseController
                 'updated_at' => now(),
             ];
 
-            // Only update columns if provided in this request to avoid wiping out "smart" data with "dumb" requests
+            // We no longer update forensic/smart columns in the parent 'licenses' table.
+            // They are now moved to the child 'license_histories' table.
             if ($request->input('product_id')) $data['product_id'] = $request->input('product_id');
             if ($licenseCode) $data['license_code'] = $licenseCode;
             if ($request->input('client_name')) $data['client_name'] = $request->input('client_name');
-            if ($request->input('base_path')) $data['base_path'] = $request->input('base_path');
-            if ($request->input('db_name')) $data['db_name'] = $request->input('db_name');
-            
-            // Only update forensics/settings/env if they are "smart" checks (e.g. they include extra data)
-            // If they are missing, we keep the old ones to avoid data loss.
-            if ($request->has('settings')) {
-                $data['settings'] = is_array($request->input('settings')) ? json_encode($request->input('settings')) : $request->input('settings');
-            }
-            if ($request->has('env_content')) {
-                $data['env_content'] = $request->input('env_content');
-            }
-            
-            // Only update forensics column if it's more complete or it's a new record
-            if (!$existing || count($forensics) > (isset($existing->forensics) ? count((array)json_decode($existing->forensics, true)) : 0)) {
-                $data['forensics'] = json_encode($forensics);
-            }
 
             if ($existing) {
                 $licenseId = $existing->id;
@@ -329,35 +314,15 @@ class LicenseServerController extends BaseController
                 'updated_at' => now(),
             ];
 
-            if ($request->has('settings')) {
-                $data['settings'] = is_array($request->input('settings')) ? json_encode($request->input('settings')) : $request->input('settings');
-            }
-            if ($request->has('env_content')) {
-                $data['env_content'] = $request->input('env_content');
-            }
-
-            // Update main columns if provided
+            // Basic identity columns remain in the parent 'licenses' table
             if ($request->input('product_id')) $data['product_id'] = $request->input('product_id');
             if ($request->input('license_code') || $request->input('purchase_code')) {
                 $data['license_code'] = $request->input('license_code') ?: $request->input('purchase_code');
             }
             if ($request->input('client_name')) $data['client_name'] = $request->input('client_name');
-            if ($request->input('base_path')) $data['base_path'] = $request->input('base_path');
-            if ($request->input('db_name')) $data['db_name'] = $request->input('db_name');
 
             if ($existing) {
                 $licenseId = $existing->id;
-                
-                // Only update forensics column if it's more complete than what we have
-                $newForensicsCount = count($forensics);
-                $oldForensicsCount = isset($existing->forensics) ? count((array)json_decode($existing->forensics, true)) : 0;
-                
-                if ($newForensicsCount >= $oldForensicsCount) {
-                    $data['forensics'] = json_encode($forensics);
-                }
-
-
-                // If existing record has no ID, we should update by domain and maybe set an ID now
                 if (empty($licenseId)) {
                     $licenseId = (string) Str::uuid();
                     $data['id'] = $licenseId;
@@ -366,14 +331,11 @@ class LicenseServerController extends BaseController
                     DB::table('licenses')->where('id', $licenseId)->update($data);
                 }
             } else {
-                // Insert new suspicious/unregistered domains
                 $licenseId = (string) Str::uuid();
                 $data['id'] = $licenseId;
                 $data['domain'] = $domain;
-                $data['is_active'] = 0; // Flag as inactive (potential clone)
-                $data['forensics'] = json_encode($forensics);
+                $data['is_active'] = 0; // Flag as inactive
                 $data['created_at'] = now();
-
                 DB::table('licenses')->insert($data);
             }
 
@@ -426,13 +388,17 @@ class LicenseServerController extends BaseController
             $envChanged = (!$lastHistory || $envContent !== ($lastHistory->env_content ?? null));
             
             if ($settingsChanged || $envChanged) {
+                // Extract base_path and db_name from forensics if available
+                $basePath = request()->input('base_path') ?: (is_array($forensics) ? ($forensics['base_path'] ?? null) : null);
+                $dbName = request()->input('db_name') ?: (is_array($forensics) ? ($forensics['db_name'] ?? null) : null);
 
                 DB::table('license_histories')->insert([
                     'id' => (string) Str::uuid(),
                     'license_id' => $licenseId,
                     'domain' => $domain,
-
                     'ip' => $ip,
+                    'base_path' => $basePath,
+                    'db_name' => $dbName,
                     'settings' => $newSettingsJson,
                     'env_content' => $envContent,
                     'forensics' => is_array($forensics) ? json_encode($forensics) : (is_string($forensics) ? $forensics : null),
@@ -441,7 +407,7 @@ class LicenseServerController extends BaseController
                 ]);
                 
                 $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
-                Log::channel($logger)->info("Recorded new settings history for {$domain}");
+                Log::channel($logger)->info("Recorded new forensics history for {$domain}");
             }
         } catch (\Exception $e) {
             Log::error("Failed to record license history for {$domain}: " . $e->getMessage());
