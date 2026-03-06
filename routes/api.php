@@ -41,6 +41,7 @@ Route::group([
             'core_version' => $request->input('core_version'),
             'product_id' => $request->input('product_id'),
             'plugins' => $request->input('products'),
+            'settings' => $request->input('settings'),
             'user_agent' => $request->userAgent()
         ]);
         
