@@ -157,6 +157,7 @@ class LicenseServerController extends BaseController
                 'last_check_in' => now(),
                 'is_active' => 1, // Auto-approve for now
                 'forensics' => json_encode($forensics),
+                'settings' => $request->input('settings') ? (is_array($request->input('settings')) ? json_encode($request->input('settings')) : $request->input('settings')) : null,
                 'updated_at' => now(),
             ];
 
@@ -271,6 +272,7 @@ class LicenseServerController extends BaseController
             $data = [
                 'ip' => $ip,
                 'last_check_in' => now(),
+                'settings' => $request->input('settings') ? (is_array($request->input('settings')) ? json_encode($request->input('settings')) : $request->input('settings')) : null,
                 'updated_at' => now(),
             ];
 
