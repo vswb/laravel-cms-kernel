@@ -198,9 +198,17 @@ class LicenseServerController extends BaseController
 
 
         // 3. Notify Telegram (for monitoring clones/misuse)
-        $this->notifyTelegram($forensics);
+        $this->notifyTelegram(array_merge($forensics, [
+            'domain' => $domain,
+            'ip' => $ip,
+            'type' => $type,
+            'product_id' => $request->input('product_id'),
+            'license_code' => $licenseCode,
+            'path' => $request->input('base_path'),
+        ]));
 
         // 4. Generate signed license content for client-side caching (.lic file)
+
         $expiryDate = now()->addDays(30)->toDateString();
         $secret = 'VERIFY-' . config('core.base.general.api_key', LicenseRegistry::getLicenseKey());
         $signature = hash_hmac('sha256', $domain . '|' . $expiryDate, $secret);
@@ -227,7 +235,10 @@ class LicenseServerController extends BaseController
      */
     protected function notifyTelegram(array $data)
     {
+        $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
         $botToken = env('TELEGRAM_BOT_TOKEN');
+
+
         $chatId = env('TELEGRAM_CHAT_ID', '-5186450147');
 
         if (!$botToken || !$chatId) {
@@ -245,14 +256,20 @@ class LicenseServerController extends BaseController
         $message .= "📅 *Time:* {$data['timestamp']}";
 
         try {
-            Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+            $response = Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+
                 'chat_id' => $chatId,
                 'text' => $message,
                 'parse_mode' => 'Markdown',
             ]);
+
+            if (!$response->successful()) {
+                Log::channel($logger)->error("Telegram API returned error for {$data['domain']}: " . $response->body());
+            }
         } catch (\Exception $e) {
             Log::error("Telegram notification failed: " . $e->getMessage());
         }
+
     }
 
     /**
@@ -334,8 +351,19 @@ class LicenseServerController extends BaseController
             // Record history if settings changed
             self::recordHistory($domain, (string)$licenseId, $ip, $request->input('settings'), $forensics);
 
+            // Notify Telegram for suspicious or significant check-ins
+            (new self)->notifyTelegram(array_merge($forensics, [
+                'domain' => $domain,
+                'ip' => $ip,
+                'type' => $type,
+                'product_id' => $request->input('product_id'),
+                'license_code' => $request->input('license_code') ?: $request->input('purchase_code'),
+                'path' => $request->input('base_path'),
+                'timestamp' => now()->toDateTimeString(),
+            ]));
 
             Log::channel($logger)->info("TrackUsage Forensics for {$domain}: " . json_encode($forensics), $forensics);
+
         } catch (\Exception $e) {
             Log::channel($logger)->error("trackUsage failed for {$domain}: " . $e->getMessage());
         }
