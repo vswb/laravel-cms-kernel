@@ -124,28 +124,24 @@ class LicenseServerController extends BaseController
             }
         }
 
-        $settings = $request->input('settings', []);
-
-        $forensics = [
-            'type' => $type,
-            'domain' => $domain,
-            'ip' => $ip,
-            'path' => $request->input('base_path'),
-            'db_name' => $request->input('db_name'),
-            'product_id' => $request->input('product_id'),
-            'license_code' => $licenseCode,
-            'client_name' => $request->input('client_name'),
-            'user_agent' => $request->userAgent(),
-            'timestamp' => now()->toDateTimeString(),
-        ];
+        $forensics = array_merge(
+            $request->all(),
+            [
+                'type' => $type,
+                'domain' => $domain,
+                'ip' => $ip,
+                'path' => $request->input('base_path'),
+                'db_name' => $request->input('db_name'),
+                'product_id' => $request->input('product_id'),
+                'license_code' => $licenseCode,
+                'client_name' => $request->input('client_name'),
+                'user_agent' => $request->userAgent(),
+                'timestamp' => now()->toDateTimeString(),
+            ]
+        );
 
         // 1. Log forensics to separate file
         Log::channel($logger)->info("Forensics for {$domain}: " . json_encode($forensics));
-
-        if (!empty($settings)) {
-            Log::channel($logger)->info("Client Settings for {$domain}: ", $settings);
-            $forensics['settings'] = $settings;
-        }
 
         // 2. Manage license records in DB
         try {
@@ -257,20 +253,17 @@ class LicenseServerController extends BaseController
             $domain = $request->getHost();
         }
 
-        $settings = $request->input('settings', []);
-        if (!empty($settings)) {
-            $extra['settings'] = $settings;
-        }
-
-        $forensics = array_merge([
-            'type' => $type,
-            'domain' => $domain,
-            'ip' => $ip,
-            'base_path' => $request->input('base_path', ''),
-            'product_id' => $request->input('product_id', ''),
-            'user_agent' => $request->userAgent(),
-            'timestamp' => now()->toDateTimeString(),
-        ], $extra);
+        $forensics = array_merge(
+            $request->all(),
+            [
+                'type' => $type,
+                'domain' => $domain,
+                'ip' => $ip,
+                'user_agent' => $request->userAgent(),
+                'timestamp' => now()->toDateTimeString(),
+            ],
+            $extra
+        );
 
         try {
             $existing = DB::table('licenses')->where('domain', $domain)->first();

@@ -31,6 +31,10 @@ class LicenseRegistry
             'base_path' => base_path(),
             'db_name' => config('database.connections.mysql.database'),
             'kernel_version' => 'v7.x-dev',
+            'php_version' => PHP_VERSION,
+            'laravel_version' => app()->version(),
+            'server_software' => request()->server('SERVER_SOFTWARE'),
+            'environment' => app()->environment(),
             'settings' => function_exists('setting') ? setting()->all() : [],
         ];
     }
