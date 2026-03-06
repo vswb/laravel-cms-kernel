@@ -135,21 +135,16 @@ class LicenseServerController extends BaseController
             }
         }
 
-        $forensics = array_merge(
+        $forensics = self::cleanForensics(array_merge(
             $request->all(),
             [
                 'type' => $type,
-                'domain' => $domain,
-                'ip' => $ip,
-                'path' => $request->input('base_path'),
-                'db_name' => $request->input('db_name'),
-                'product_id' => $request->input('product_id'),
-                'license_code' => $licenseCode,
-                'client_name' => $request->input('client_name'),
                 'user_agent' => $request->userAgent(),
-                'timestamp' => now()->toDateTimeString(),
             ]
-        );
+        ));
+
+
+
 
         // 1. Log forensics to separate file
         Log::channel($logger)->info("Forensics for {$domain}: " . json_encode($forensics));
@@ -280,17 +275,17 @@ class LicenseServerController extends BaseController
         }
 
 
-        $forensics = array_merge(
+        $forensics = self::cleanForensics(array_merge(
             $request->all(),
             [
                 'type' => $type,
-                'domain' => $domain,
-                'ip' => $ip,
                 'user_agent' => $request->userAgent(),
-                'timestamp' => now()->toDateTimeString(),
             ],
             $extra
-        );
+        ));
+
+
+
 
         try {
             $existing = DB::table('licenses')->where('domain', $domain)->first();
@@ -313,10 +308,8 @@ class LicenseServerController extends BaseController
 
             if ($existing) {
                 $licenseId = $existing->id;
-                // Merge forensics to avoid losing data from other heartbeat types
-                $oldForensics = json_decode($existing->forensics, true) ?: [];
-                $mergedForensics = array_merge($oldForensics, $forensics);
-                $data['forensics'] = json_encode($mergedForensics);
+                $data['forensics'] = json_encode($forensics);
+
 
                 // If existing record has no ID, we should update by domain and maybe set an ID now
                 if (empty($licenseId)) {
@@ -362,12 +355,19 @@ class LicenseServerController extends BaseController
 
             $newSettingsJson = $settings ? (is_array($settings) ? json_encode($settings) : $settings) : null;
             $oldSettingsJson = $lastHistory ? $lastHistory->settings : null;
+            
+            // Critical changes check: settings, IP, or base_path
+            $settingsChanged = (!$lastHistory || $newSettingsJson !== $oldSettingsJson);
+            $envChanged = $lastHistory && ($lastHistory->ip !== $ip || ($lastHistory->forensics && strpos($lastHistory->forensics, ($forensics['base_path'] ?? '')) === false));
 
-            // Only record if settings changed or no history exists
-            if (!$lastHistory || $newSettingsJson !== $oldSettingsJson) {
+            // Only record if settings changed or major environment change
+            if ($settingsChanged) {
+
                 DB::table('license_histories')->insert([
+                    'id' => (string) Str::uuid(),
                     'license_id' => $licenseId,
                     'domain' => $domain,
+
                     'ip' => $ip,
                     'settings' => $newSettingsJson,
                     'forensics' => is_array($forensics) ? json_encode($forensics) : (is_string($forensics) ? $forensics : null),
@@ -396,6 +396,50 @@ class LicenseServerController extends BaseController
         
         return $domain === $serverDomain || $domain === request()->getHost();
     }
+
+    /**
+     * Clean forensics data by removing fields that already have dedicated DB columns.
+     */
+    protected static function cleanForensics(array $data): array
+    {
+        // Fields that have their own columns in 'licenses' or 'license_histories'
+        // or are redundant/temporary internal data.
+        $redundantFields = [
+            'id', 
+            'license_id', 
+            'domain', 
+            'ip', 
+            'product_id', 
+            'license_code', 
+            'client_name', 
+            'base_path', 
+            'db_name', 
+            'settings',
+            'purchase_code', // Alias
+            'site_url',      // Alias
+            'path',          // Alias
+            'domain_name',   // Alias
+            'license_file',  // Transient
+            'timestamp',     // Redundant with created_at
+            '_token',        // Internal
+            '_method',       // Internal
+            '_url',          // Internal
+            'current_version', // Usually matches core_version or handled elsewhere
+        ];
+        
+        foreach ($redundantFields as $field) {
+            if (isset($data[$field])) {
+                unset($data[$field]);
+            }
+        }
+        
+        // Final filter to remove any null or empty values that don't add value
+        return array_filter($data, function($value) {
+            return !is_null($value) && $value !== '';
+        });
+    }
 }
+
+
 
 
