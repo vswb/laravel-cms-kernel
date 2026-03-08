@@ -1907,7 +1907,8 @@ if (!function_exists('apps_telegram_send_message')) {
                 'parse_mode' => 'HTML',
                 'disable_web_page_preview' => true,
                 'link_preview_options' => ['is_disabled' => true],
-                'chat_id' => env('TELEGRAM_CHAT_ID', config("telegram.bots.{$channel}.chat_id", '-1001541977083'))
+                'chat_id' => env('TELEGRAM_CHAT_ID', config("telegram.bots.{$channel}.chat_id", '-1001541977083')),
+                'message_thread_id' => env('TELEGRAM_MESSAGE_THREAD_ID', config("telegram.bots.{$channel}.message_thread_id", '-20958'))
             ];
 
             if (!blank($configs)) {
@@ -1917,8 +1918,8 @@ if (!function_exists('apps_telegram_send_message')) {
                 ];
             }
 
-            // Log::channel($logger)->info("configs", $configs);
-            // Log::channel($logger)->info("telegramDfOptions", $telegramDfOptions);
+            Log::channel($logger)->info("configs", $configs);
+            Log::channel($logger)->info("telegramDfOptions", $telegramDfOptions);
 
             $telegramDfOptions['text'] = \Illuminate\Support\Str::limit( // Can use facades app('url) but helper str() not available right now, possibly because not loaded
                 is_array($message) ?
