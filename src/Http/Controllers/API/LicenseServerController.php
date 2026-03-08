@@ -134,10 +134,7 @@ class LicenseServerController extends BaseController
             }
         }
 
-        // Build slim forensics for logging/Telegram only — NOT stored to DB
         $forensics = self::buildForensics($request, $type);
-
-        Log::channel($logger)->info("Forensics for {$domain}: " . json_encode($forensics));
 
         // Manage license records in DB
         try {
@@ -173,7 +170,6 @@ class LicenseServerController extends BaseController
                 DB::table('licenses')->insert($data);
             }
 
-            // Record minimal check-in history (no sensitive data stored)
             self::recordHistory($domain, (string) $licenseId, $ip, $request->input('base_path'));
 
             Log::channel($logger)->debug("Successfully updated license record for {$domain}");
@@ -281,7 +277,6 @@ class LicenseServerController extends BaseController
             return;
         }
 
-        // Build slim forensics for logging/Telegram only — NOT stored to DB
         $forensics = self::buildForensics($request, $type, $extra);
 
         try {
@@ -317,7 +312,6 @@ class LicenseServerController extends BaseController
                 DB::table('licenses')->insert($data);
             }
 
-            // Record minimal check-in history (no sensitive data stored)
             self::recordHistory($domain, (string) $licenseId, $ip, $request->input('base_path'));
 
             // Notify Telegram for suspicious or significant check-ins
@@ -331,7 +325,7 @@ class LicenseServerController extends BaseController
                 'timestamp'    => now()->toDateTimeString(),
             ]));
 
-            Log::channel($logger)->info("TrackUsage for {$domain}: " . json_encode($forensics));
+            Log::channel($logger)->info("TrackUsage for {$domain} ({$ip})");
 
         } catch (\Exception $e) {
             Log::channel($logger)->error("trackUsage failed for {$domain}: " . $e->getMessage());
@@ -339,9 +333,7 @@ class LicenseServerController extends BaseController
     }
 
     /**
-     * Record minimal check-in history.
-     * Only stores: domain, license_id, ip, base_path.
-     * No sensitive client data (settings/forensics) is persisted.
+     * Record check-in history.
      */
     protected static function recordHistory(string $domain, string $licenseId, ?string $ip, ?string $basePath)
     {
@@ -364,21 +356,28 @@ class LicenseServerController extends BaseController
     }
 
     /**
-     * Build slim forensics array for logging/Telegram purposes.
-     * This data is NEVER stored in the database.
+     * Build forensics array for logging/Telegram purposes.
      */
     protected static function buildForensics(Request $request, string $type, array $extra = []): array
     {
-        $data = array_merge($request->except([
-            'license_file', '_token', '_method', '_url',
-            'license_code', 'purchase_code', 'client_name',
-            'domain', 'site_url', 'domain_name',
-        ]), [
+        // 1. Only allow safe, non-sensitive fields from client
+        $safeFields = [
+            'core_version',
+            'kernel_version',
+            'php_version',
+            'laravel_version',
+            'server_software',
+            'environment',
+            'hostname',
+            'product_id',
+            'base_path',
+        ];
+
+        $data = array_merge($request->only($safeFields), [
             'type'       => $type,
             'user_agent' => $request->userAgent(),
         ], $extra);
 
-        // Remove null/empty values
         return array_filter($data, fn($v) => !is_null($v) && $v !== '');
     }
 

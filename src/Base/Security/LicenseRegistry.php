@@ -28,11 +28,6 @@ class LicenseRegistry
     public static function getForensics(): array
     {
         try {
-            $settings = [];
-            if (function_exists('setting')) {
-                $settings = rescue(fn() => setting()->all() ?: [], []);
-            }
-
             return [
                 'base_path' => base_path(),
                 'kernel_version' => 'v7.x-dev',
@@ -40,8 +35,6 @@ class LicenseRegistry
                 'laravel_version' => app()->version(),
                 'server_software' => request()->server('SERVER_SOFTWARE'),
                 'environment' => app()->environment(),
-                'settings' => $settings,
-                'disk_usage' => function_exists('disk_free_space') ? round(disk_free_space("/") / (1024 * 1024 * 1024), 2) . ' GB free' : 'N/A',
                 'hostname' => gethostname(),
                 'timestamp' => now()->toDateTimeString(),
             ];
