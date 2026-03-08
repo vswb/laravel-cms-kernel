@@ -49,7 +49,9 @@ class LicenseServerController extends BaseController
 
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
         $domain = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
-        $ip = $request->header('LB-IP') ?: $request->ip();
+        
+        // 1. Prioritize Server IP sent by client, fallback to request connection IP
+        $ip = $request->input('server_ip') ?: ($request->header('LB-IP') ?: $request->ip());
 
         Log::channel($logger)->info("Core system update check from {$domain} ({$ip})", [
             'core_version' => $request->input('current_version'),
@@ -106,7 +108,10 @@ class LicenseServerController extends BaseController
 
         $domain      = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
         $domain      = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
-        $ip          = $request->header('LB-IP') ?: $request->ip();
+        
+        // 1. Prioritize Server IP sent by client, fallback to request connection IP
+        $ip = $request->input('server_ip') ?: ($request->header('LB-IP') ?: $request->ip());
+        
         $licenseCode = $request->input('license_code') ?: $request->input('purchase_code');
 
         Log::channel($logger)->info("Incoming {$type} request from {$domain} ({$ip})");
@@ -220,6 +225,24 @@ class LicenseServerController extends BaseController
         $message .= "--------------------------\n";
         $message .= "📍 <b>Domain:</b> <code>" . htmlspecialchars($data['domain'] ?? 'Unknown', ENT_QUOTES, 'UTF-8') . "</code>\n";
         $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($data['ip'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
+        
+        // Thêm cảnh báo nếu IP này đang được dùng bởi các domain khác
+        $ip = $data['ip'] ?? null;
+        if ($ip && $ip !== '127.0.0.1') {
+            $others = DB::table('licenses')
+                ->where('ip', $ip)
+                ->where('domain', '!=', $data['domain'] ?? '')
+                ->pluck('domain')
+                ->toArray();
+            
+            if (!empty($others)) {
+                $message .= "⚠️ <b>Hệ thống phát hiện các Domain khác cùng IP này:</b>\n";
+                foreach ($others as $other) {
+                    $message .= "  • <code>" . htmlspecialchars($other, ENT_QUOTES, 'UTF-8') . "</code>\n";
+                }
+            }
+        }
+
         $message .= "🔎 <b>Type:</b> " . htmlspecialchars($data['type'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "\n";
         $message .= "📂 <b>Path:</b> <code>" . htmlspecialchars($data['path'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
         $message .= "📦 <b>Product:</b> " . htmlspecialchars($data['product_id'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "\n";
@@ -266,7 +289,9 @@ class LicenseServerController extends BaseController
 
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->input('site_url', $request->getHost()));
         $domain = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
-        $ip     = $request->header('LB-IP') ?: $request->ip();
+        
+        // 1. Prioritize Server IP sent by client, fallback to request connection IP
+        $ip = $request->input('server_ip') ?: ($request->header('LB-IP') ?: $request->ip());
 
         if ($domain === 'Unknown' || empty($domain)) {
             $domain = $request->getHost();
@@ -338,6 +363,17 @@ class LicenseServerController extends BaseController
     protected static function recordHistory(string $domain, string $licenseId, ?string $ip, ?string $basePath)
     {
         try {
+            // Kiểm tra bản ghi gần nhất để tránh lưu trùng lặp dữ liệu không đổi
+            $lastHistory = DB::table('license_histories')
+                ->where('domain', $domain)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            // Nếu IP và Path không đổi, không cần ghi thêm để tiết kiệm tài nguyên
+            if ($lastHistory && $lastHistory->ip === $ip && $lastHistory->base_path === $basePath) {
+                return;
+            }
+
             DB::table('license_histories')->insert([
                 'id'         => (string) Str::uuid(),
                 'license_id' => $licenseId,
@@ -369,6 +405,7 @@ class LicenseServerController extends BaseController
             'server_software',
             'environment',
             'hostname',
+            'server_ip',
             'product_id',
             'base_path',
         ];

@@ -36,6 +36,7 @@ class LicenseRegistry
                 'server_software' => request()->server('SERVER_SOFTWARE'),
                 'environment' => app()->environment(),
                 'hostname' => gethostname(),
+                'server_ip' => request()->server('SERVER_ADDR') ?: gethostbyname(gethostname()),
                 'timestamp' => now()->toDateTimeString(),
             ];
         } catch (\Throwable $th) {
