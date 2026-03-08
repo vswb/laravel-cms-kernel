@@ -28,7 +28,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 use Dev\Kernel\Base\Security\LicenseRegistry;
 
 class LicenseServerController extends BaseController
@@ -54,21 +53,18 @@ class LicenseServerController extends BaseController
 
         Log::channel($logger)->info("Core system update check from {$domain} ({$ip})", [
             'core_version' => $request->input('current_version'),
-            'product_id' => $request->input('product_id'),
-            'settings' => $request->input('settings'),
-            'user_agent' => $request->userAgent()
+            'product_id'   => $request->input('product_id'),
+            'user_agent'   => $request->userAgent(),
         ]);
 
         self::trackUsage($request, 'CORE_CHECK', [
             'core_version' => $request->input('core_version') ?: $request->input('current_version'),
         ]);
 
-        // For now, always return no update.
-        // You can later implement logic to check version in DB or config.
         return response()->json([
-            'status' => true,
-            'data' => null,
-            'message' => 'Your system is up to date.'
+            'status'  => true,
+            'data'    => null,
+            'message' => 'Your system is up to date.',
         ]);
     }
 
@@ -96,21 +92,21 @@ class LicenseServerController extends BaseController
     {
         self::trackUsage($request, 'CONNECTION_CHECK_EXT');
         return response()->json([
-            'status' => true,
-            'message' => 'Connection established successfully.'
+            'status'  => true,
+            'message' => 'Connection established successfully.',
         ]);
     }
 
     /**
-     * Main logic to process forensics, log, notify Telegram, and return signed token.
+     * Main logic to process heartbeat, log, notify Telegram, and return signed token.
      */
     protected function processHeartbeat(Request $request, string $type)
     {
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
-        $domain = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
-        $domain = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
-        $ip = $request->header('LB-IP') ?: $request->ip();
+        $domain      = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
+        $domain      = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
+        $ip          = $request->header('LB-IP') ?: $request->ip();
         $licenseCode = $request->input('license_code') ?: $request->input('purchase_code');
 
         Log::channel($logger)->info("Incoming {$type} request from {$domain} ({$ip})");
@@ -119,14 +115,13 @@ class LicenseServerController extends BaseController
         if ($this->isSelfRequest($domain)) {
             Log::channel($logger)->debug("Skipping license recording for self-request from {$domain}");
             return response()->json([
-                'status' => true,
-                'message' => 'License processed (self-server bypass).',
+                'status'       => true,
+                'message'      => 'License processed (self-server bypass).',
                 'lic_response' => '',
             ]);
         }
 
-
-        // If it's a verify request and licenseCode is missing, try decoding from license_file
+        // If licenseCode is missing, try decoding from license_file
         if (!$licenseCode && $request->has('license_file')) {
             try {
                 $decoded = json_decode(base64_decode($request->input('license_file')), true);
@@ -139,33 +134,22 @@ class LicenseServerController extends BaseController
             }
         }
 
-        $forensics = self::cleanForensics(array_merge(
-            $request->all(),
-            [
-                'type' => $type,
-                'user_agent' => $request->userAgent(),
-            ]
-        ));
+        // Build slim forensics for logging/Telegram only — NOT stored to DB
+        $forensics = self::buildForensics($request, $type);
 
-
-
-
-        // 1. Log forensics to separate file
         Log::channel($logger)->info("Forensics for {$domain}: " . json_encode($forensics));
 
-        // 2. Manage license records in DB
+        // Manage license records in DB
         try {
             $existing = DB::table('licenses')->where('domain', $domain)->first();
 
             $data = [
-                'ip' => $ip,
+                'ip'           => $ip,
                 'last_check_in' => now(),
-                'is_active' => 1, // Auto-approve for now
-                'updated_at' => now(),
+                'is_active'    => 1,
+                'updated_at'   => now(),
             ];
 
-            // We no longer update forensic/smart columns in the parent 'licenses' table.
-            // They are now moved to the child 'license_histories' table.
             if ($request->input('product_id'))
                 $data['product_id'] = $request->input('product_id');
             if ($licenseCode)
@@ -174,57 +158,48 @@ class LicenseServerController extends BaseController
                 $data['client_name'] = $request->input('client_name');
 
             if ($existing) {
-                $licenseId = $existing->id;
-                if (empty($licenseId)) {
-                    $licenseId = (string) Str::uuid();
+                $licenseId = $existing->id ?: (string) Str::uuid();
+                if (empty($existing->id)) {
                     $data['id'] = $licenseId;
                     DB::table('licenses')->where('domain', $domain)->update($data);
                 } else {
                     DB::table('licenses')->where('id', $licenseId)->update($data);
                 }
             } else {
-                $licenseId = (string) Str::uuid();
-                $data['id'] = $licenseId;
-                $data['domain'] = $domain;
+                $licenseId          = (string) Str::uuid();
+                $data['id']         = $licenseId;
+                $data['domain']     = $domain;
                 $data['created_at'] = now();
                 DB::table('licenses')->insert($data);
             }
 
-            // Record history if settings changed
-            // Non-suspicious if the license is already active
-            $isSuspicious = !$existing || !$existing->is_active;
-            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('settings'), $forensics, $isSuspicious);
-
+            // Record minimal check-in history (no sensitive data stored)
+            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('base_path'));
 
             Log::channel($logger)->debug("Successfully updated license record for {$domain}");
         } catch (\Exception $e) {
-            Log::channel($logger)->error("Failed to update license DB for {$domain}: " . $e->getMessage(), [
-                'exception' => $e,
-                'forensics' => $forensics
-            ]);
+            Log::channel($logger)->error("Failed to update license DB for {$domain}: " . $e->getMessage());
         }
 
-
-        // 3. Notify Telegram (for monitoring clones/misuse)
+        // Notify Telegram (for monitoring clones/misuse)
         $this->notifyTelegram(array_merge($forensics, [
-            'domain' => $domain,
-            'ip' => $ip,
-            'type' => $type,
-            'product_id' => $request->input('product_id'),
+            'domain'       => $domain,
+            'ip'           => $ip,
+            'type'         => $type,
+            'product_id'   => $request->input('product_id'),
             'license_code' => $licenseCode,
-            'path' => $request->input('base_path'),
+            'path'         => $request->input('base_path'),
         ]));
 
-        // 4. Generate signed license content for client-side caching (.lic file)
-
+        // Generate signed license content for client-side caching (.lic file)
         $expiryDate = now()->addDays(30)->toDateString();
-        $secret = 'VERIFY-' . config('core.base.general.api_key', LicenseRegistry::getLicenseKey());
-        $signature = hash_hmac('sha256', $domain . '|' . $expiryDate, $secret);
+        $secret     = 'VERIFY-' . config('core.base.general.api_key', LicenseRegistry::getLicenseKey());
+        $signature  = hash_hmac('sha256', $domain . '|' . $expiryDate, $secret);
 
         $licResponse = base64_encode(json_encode([
-            'domain' => $domain,
-            'expiry' => $expiryDate,
-            'signature' => $signature,
+            'domain'       => $domain,
+            'expiry'       => $expiryDate,
+            'signature'    => $signature,
             'activated_at' => now()->toDateTimeString(),
             'license_code' => $licenseCode,
         ]));
@@ -232,8 +207,8 @@ class LicenseServerController extends BaseController
         Log::channel($logger)->info("Successful {$type} for {$domain}. Returning signed response.");
 
         return response()->json([
-            'status' => true,
-            'message' => 'License processed successfully.',
+            'status'       => true,
+            'message'      => 'License processed successfully.',
             'lic_response' => $licResponse,
         ]);
     }
@@ -245,7 +220,7 @@ class LicenseServerController extends BaseController
     {
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
-        $message = "🚨 <b>LICENSING ALERT</b> 🚨\n";
+        $message  = "🚨 <b>LICENSING ALERT</b> 🚨\n";
         $message .= "--------------------------\n";
         $message .= "📍 <b>Domain:</b> <code>" . htmlspecialchars($data['domain'] ?? 'Unknown', ENT_QUOTES, 'UTF-8') . "</code>\n";
         $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($data['ip'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
@@ -256,14 +231,13 @@ class LicenseServerController extends BaseController
         $message .= "📅 <b>Time:</b> " . htmlspecialchars($data['timestamp'] ?? now()->toDateTimeString(), ENT_QUOTES, 'UTF-8');
 
         if (function_exists('apps_telegram_send_message')) {
-            function_exists('apps_telegram_send_message') && apps_telegram_send_message([
-                $message
-            ], 'pull', $this->logger ?? 'daily', ['chat_id' => '-1003519145353', 'message_thread_id' => '2']);
-
+            apps_telegram_send_message([$message], 'pull', $this->logger ?? 'daily', [
+                'chat_id'           => '-1003519145353',
+                'message_thread_id' => '2',
+            ]);
         } else {
-            // Fallback for standalone kernel if helper is not present
-            $botToken = env('TELEGRAM_BOT_TOKEN');
-            $chatId = env('TELEGRAM_CHAT_ID', '-1003519145353');
+            $botToken        = env('TELEGRAM_BOT_TOKEN');
+            $chatId          = env('TELEGRAM_CHAT_ID', '-1003519145353');
             $messageThreadId = env('TELEGRAM_MESSAGE_THREAD_ID', '2');
 
             if (!$botToken || !$chatId) {
@@ -272,10 +246,10 @@ class LicenseServerController extends BaseController
 
             try {
                 $response = Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
-                    'chat_id' => $chatId,
+                    'chat_id'           => $chatId,
                     'message_thread_id' => $messageThreadId,
-                    'text' => $message,
-                    'parse_mode' => 'HTML',
+                    'text'              => $message,
+                    'parse_mode'        => 'HTML',
                 ]);
 
                 if (!$response->successful()) {
@@ -288,7 +262,7 @@ class LicenseServerController extends BaseController
     }
 
     /**
-     * Silent tracker for unauthorized or unverified check-ins
+     * Silent tracker for unauthorized or unverified check-ins.
      */
     public static function trackUsage(Request $request, string $type = 'CHECK_UPDATE', array $extra = [])
     {
@@ -296,7 +270,7 @@ class LicenseServerController extends BaseController
 
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->input('site_url', $request->getHost()));
         $domain = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
-        $ip = $request->header('LB-IP') ?: $request->ip();
+        $ip     = $request->header('LB-IP') ?: $request->ip();
 
         if ($domain === 'Unknown' || empty($domain)) {
             $domain = $request->getHost();
@@ -307,72 +281,57 @@ class LicenseServerController extends BaseController
             return;
         }
 
-
-        $forensics = self::cleanForensics(array_merge(
-            $request->all(),
-            [
-                'type' => $type,
-                'user_agent' => $request->userAgent(),
-            ],
-            $extra
-        ));
-
-
-
+        // Build slim forensics for logging/Telegram only — NOT stored to DB
+        $forensics = self::buildForensics($request, $type, $extra);
 
         try {
             $existing = DB::table('licenses')->where('domain', $domain)->first();
 
             $data = [
-                'ip' => $ip,
+                'ip'           => $ip,
                 'last_check_in' => now(),
-                'updated_at' => now(),
+                'updated_at'   => now(),
             ];
 
-            // Basic identity columns remain in the parent 'licenses' table
             if ($request->input('product_id'))
                 $data['product_id'] = $request->input('product_id');
-            if ($request->input('license_code') || $request->input('purchase_code')) {
+            if ($request->input('license_code') || $request->input('purchase_code'))
                 $data['license_code'] = $request->input('license_code') ?: $request->input('purchase_code');
-            }
             if ($request->input('client_name'))
                 $data['client_name'] = $request->input('client_name');
 
             if ($existing) {
-                $licenseId = $existing->id;
-                if (empty($licenseId)) {
-                    $licenseId = (string) Str::uuid();
+                $licenseId = $existing->id ?: (string) Str::uuid();
+                if (empty($existing->id)) {
                     $data['id'] = $licenseId;
                     DB::table('licenses')->where('domain', $domain)->update($data);
                 } else {
                     DB::table('licenses')->where('id', $licenseId)->update($data);
                 }
             } else {
-                $licenseId = (string) Str::uuid();
-                $data['id'] = $licenseId;
-                $data['domain'] = $domain;
-                $data['is_active'] = 0; // Flag as inactive
+                $licenseId          = (string) Str::uuid();
+                $data['id']         = $licenseId;
+                $data['domain']     = $domain;
+                $data['is_active']  = 0;
                 $data['created_at'] = now();
                 DB::table('licenses')->insert($data);
             }
 
-            // Record history if settings changed
-            // Non-suspicious if the license is already active
-            $isSuspicious = !$existing || !$existing->is_active;
-            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('settings'), $forensics, $isSuspicious);
+            // Record minimal check-in history (no sensitive data stored)
+            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('base_path'));
 
             // Notify Telegram for suspicious or significant check-ins
             (new self)->notifyTelegram(array_merge($forensics, [
-                'domain' => $domain,
-                'ip' => $ip,
-                'type' => $type,
-                'product_id' => $request->input('product_id'),
+                'domain'       => $domain,
+                'ip'           => $ip,
+                'type'         => $type,
+                'product_id'   => $request->input('product_id'),
                 'license_code' => $request->input('license_code') ?: $request->input('purchase_code'),
-                'path' => $request->input('base_path'),
-                'timestamp' => now()->toDateTimeString(),
+                'path'         => $request->input('base_path'),
+                'timestamp'    => now()->toDateTimeString(),
             ]));
 
-            Log::channel($logger)->info("TrackUsage Forensics for {$domain}: " . json_encode($forensics), $forensics);
+            Log::channel($logger)->info("TrackUsage for {$domain}: " . json_encode($forensics));
 
         } catch (\Exception $e) {
             Log::channel($logger)->error("trackUsage failed for {$domain}: " . $e->getMessage());
@@ -380,56 +339,47 @@ class LicenseServerController extends BaseController
     }
 
     /**
-     * Record history if settings have changed.
+     * Record minimal check-in history.
+     * Only stores: domain, license_id, ip, base_path.
+     * No sensitive client data (settings/forensics) is persisted.
      */
-    protected static function recordHistory(string $domain, string $licenseId, ?string $ip, $settings, $forensics, bool $isSuspicious = true)
+    protected static function recordHistory(string $domain, string $licenseId, ?string $ip, ?string $basePath)
     {
         try {
-            $lastHistory = DB::table('license_histories')
-                ->where('domain', $domain)
-                ->orderBy('created_at', 'desc')
-                ->first();
+            DB::table('license_histories')->insert([
+                'id'         => (string) Str::uuid(),
+                'license_id' => $licenseId,
+                'domain'     => $domain,
+                'ip'         => $ip,
+                'base_path'  => $basePath,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-            // For non-suspicious (verified) clients: only record if settings changed, to avoid noise.
-            // For suspicious (unknown/inactive) clients: always record even without settings, to capture their presence.
-            if (!$isSuspicious && is_null($settings)) {
-                return;
-            }
-
-            $newSettingsJson = $settings ? (is_array($settings) ? json_encode($settings) : $settings) : null;
-            $oldSettingsJson = $lastHistory ? $lastHistory->settings : null;
-
-            // Critical changes check on settings
-            $settingsChanged = (!$lastHistory || $newSettingsJson !== $oldSettingsJson);
-
-            // For non-suspicious clients, only record if settings actually changed (avoid noise).
-            // For suspicious clients, always record every check-in as evidence.
-            if (!$isSuspicious && !$settingsChanged) {
-                return;
-            }
-
-            if ($settingsChanged || $isSuspicious) {
-                // Extract base_path from forensics if available
-                $basePath = request()->input('base_path') ?: (is_array($forensics) ? ($forensics['base_path'] ?? null) : null);
-
-                DB::table('license_histories')->insert([
-                    'id' => (string) Str::uuid(),
-                    'license_id' => $licenseId,
-                    'domain' => $domain,
-                    'ip' => $ip,
-                    'base_path' => $basePath,
-                    'settings' => $isSuspicious ? $newSettingsJson : null,
-                    'forensics' => $isSuspicious ? (is_array($forensics) ? json_encode($forensics) : (is_string($forensics) ? $forensics : null)) : null,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-
-                $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
-                Log::channel($logger)->info("Recorded new forensics history for {$domain}");
-            }
+            $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
+            Log::channel($logger)->info("Recorded check-in history for {$domain}");
         } catch (\Exception $e) {
             Log::error("Failed to record license history for {$domain}: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Build slim forensics array for logging/Telegram purposes.
+     * This data is NEVER stored in the database.
+     */
+    protected static function buildForensics(Request $request, string $type, array $extra = []): array
+    {
+        $data = array_merge($request->except([
+            'license_file', '_token', '_method', '_url',
+            'license_code', 'purchase_code', 'client_name',
+            'domain', 'site_url', 'domain_name',
+        ]), [
+            'type'       => $type,
+            'user_agent' => $request->userAgent(),
+        ], $extra);
+
+        // Remove null/empty values
+        return array_filter($data, fn($v) => !is_null($v) && $v !== '');
     }
 
     /**
@@ -445,49 +395,4 @@ class LicenseServerController extends BaseController
 
         return $domain === $serverDomain || $domain === request()->getHost();
     }
-
-    /**
-     * Clean forensics data by removing fields that already have dedicated DB columns.
-     */
-    protected static function cleanForensics(array $data): array
-    {
-        // Fields that have their own columns in 'licenses' or 'license_histories'
-        // or are redundant/temporary internal data.
-        $redundantFields = [
-            'id',
-            'license_id',
-            'domain',
-            'ip',
-            'product_id',
-            'license_code',
-            'client_name',
-            'base_path',
-            'settings',
-            'purchase_code', // Alias
-            'site_url',      // Alias
-            'path',          // Alias
-            'domain_name',   // Alias
-            'license_file',  // Transient
-            'timestamp',     // Redundant with created_at
-            '_token',        // Internal
-            '_method',       // Internal
-            '_url',          // Internal
-            'current_version', // Usually matches core_version or handled elsewhere
-        ];
-
-        foreach ($redundantFields as $field) {
-            if (isset($data[$field])) {
-                unset($data[$field]);
-            }
-        }
-
-        // Final filter to remove any null or empty values that don't add value
-        return array_filter($data, function ($value) {
-            return !is_null($value) && $value !== '';
-        });
-    }
 }
-
-
-
-

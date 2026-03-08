@@ -7,12 +7,14 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     /**
      * Columns to remove from license_histories.
-     * These were deprecated for privacy reasons:
-     *   - env_content: raw .env file content (too sensitive)
-     *   - db_name: client database name (not needed)
+     * These were deprecated for privacy/security reasons:
+     *   - env_content : raw .env file content (too sensitive)
+     *   - db_name     : client database name (not needed)
+     *   - settings    : client CMS settings (sensitive — API keys, SMTP, etc.)
+     *   - forensics   : raw request payload (sensitive client data)
      */
     private array $deprecatedColumns = [
-        'license_histories' => ['env_content', 'db_name'],
+        'license_histories' => ['env_content', 'db_name', 'settings', 'forensics'],
     ];
 
     public function up(): void
@@ -22,10 +24,10 @@ return new class extends Migration {
                 continue;
             }
 
-            Schema::table($table, function (Blueprint $table) use ($columns) {
+            Schema::table($table, function (Blueprint $tbl) use ($table, $columns) {
                 foreach ($columns as $column) {
-                    if (Schema::hasColumn($table->getTable(), $column)) {
-                        $table->dropColumn($column);
+                    if (Schema::hasColumn($table, $column)) {
+                        $tbl->dropColumn($column);
                     }
                 }
             });
@@ -34,15 +36,17 @@ return new class extends Migration {
 
     public function down(): void
     {
-        // Restore columns if you need to roll back
+        // Restore columns if needed for rollback
         if (Schema::hasTable('license_histories')) {
             Schema::table('license_histories', function (Blueprint $table) {
-                if (!Schema::hasColumn('license_histories', 'db_name')) {
+                if (!Schema::hasColumn('license_histories', 'settings'))
+                    $table->longText('settings')->nullable()->after('base_path');
+                if (!Schema::hasColumn('license_histories', 'forensics'))
+                    $table->longText('forensics')->nullable()->after('settings');
+                if (!Schema::hasColumn('license_histories', 'db_name'))
                     $table->string('db_name', 100)->nullable()->after('base_path');
-                }
-                if (!Schema::hasColumn('license_histories', 'env_content')) {
+                if (!Schema::hasColumn('license_histories', 'env_content'))
                     $table->longText('env_content')->nullable()->after('settings');
-                }
             });
         }
     }

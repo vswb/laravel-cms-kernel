@@ -26,6 +26,7 @@ return new class extends Migration {
         }
 
         // 2. Create Child Table: license_histories
+        // Only stores minimal check-in data — no sensitive client data.
         if (!Schema::hasTable('license_histories')) {
             Schema::create('license_histories', function (Blueprint $table) {
                 $table->uuid('id')->primary();
@@ -33,8 +34,6 @@ return new class extends Migration {
                 $table->string('domain', 150)->index();
                 $table->string('ip', 50)->nullable();
                 $table->text('base_path')->nullable();
-                $table->longText('settings')->nullable();
-                $table->longText('forensics')->nullable();
                 $table->timestamps();
 
                 // Foreign Key setup with Cascade Delete
