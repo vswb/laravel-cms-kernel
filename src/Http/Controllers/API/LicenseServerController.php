@@ -47,10 +47,10 @@ class LicenseServerController extends BaseController
     public function checkUpdate(Request $request)
     {
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
-        
+
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
         $ip = $request->header('LB-IP') ?: $request->ip();
-        
+
         Log::channel($logger)->info("Core system update check from {$domain} ({$ip})", [
             'core_version' => $request->input('current_version'),
             'product_id' => $request->input('product_id'),
@@ -66,7 +66,7 @@ class LicenseServerController extends BaseController
         // You can later implement logic to check version in DB or config.
         return response()->json([
             'status' => true,
-            'data' => null, 
+            'data' => null,
             'message' => 'Your system is up to date.'
         ]);
     }
@@ -119,7 +119,7 @@ class LicenseServerController extends BaseController
             return response()->json([
                 'status' => true,
                 'message' => 'License processed (self-server bypass).',
-                'lic_response' => '', 
+                'lic_response' => '',
             ]);
         }
 
@@ -154,7 +154,7 @@ class LicenseServerController extends BaseController
         // 2. Manage license records in DB
         try {
             $existing = DB::table('licenses')->where('domain', $domain)->first();
-            
+
             $data = [
                 'ip' => $ip,
                 'last_check_in' => now(),
@@ -164,9 +164,12 @@ class LicenseServerController extends BaseController
 
             // We no longer update forensic/smart columns in the parent 'licenses' table.
             // They are now moved to the child 'license_histories' table.
-            if ($request->input('product_id')) $data['product_id'] = $request->input('product_id');
-            if ($licenseCode) $data['license_code'] = $licenseCode;
-            if ($request->input('client_name')) $data['client_name'] = $request->input('client_name');
+            if ($request->input('product_id'))
+                $data['product_id'] = $request->input('product_id');
+            if ($licenseCode)
+                $data['license_code'] = $licenseCode;
+            if ($request->input('client_name'))
+                $data['client_name'] = $request->input('client_name');
 
             if ($existing) {
                 $licenseId = $existing->id;
@@ -184,9 +187,9 @@ class LicenseServerController extends BaseController
                 $data['created_at'] = now();
                 DB::table('licenses')->insert($data);
             }
-            
+
             // Record history if settings changed
-            self::recordHistory($domain, (string)$licenseId, $ip, $request->input('settings'), $request->input('env_content'), $forensics);
+            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('settings'), $request->input('env_content'), $forensics);
 
 
             Log::channel($logger)->debug("Successfully updated license record for {$domain}");
@@ -237,40 +240,47 @@ class LicenseServerController extends BaseController
     protected function notifyTelegram(array $data)
     {
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
-        $botToken = env('TELEGRAM_BOT_TOKEN');
-
-
-        $chatId = env('TELEGRAM_CHAT_ID', '-5186450147');
-
-        if (!$botToken || !$chatId) {
-            return;
-        }
 
         $message = "🚨 <b>LICENSING ALERT</b> 🚨\n";
         $message .= "--------------------------\n";
-        $message .= "📍 <b>Domain:</b> <code>" . htmlspecialchars($data['domain']) . "</code>\n";
-        $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($data['ip']) . "</code>\n";
-        $message .= "🔎 <b>Type:</b> " . htmlspecialchars($data['type']) . "\n";
-        $message .= "📂 <b>Path:</b> <code>" . htmlspecialchars($data['path'] ?? 'N/A') . "</code>\n";
-        $message .= "📦 <b>Product:</b> " . htmlspecialchars($data['product_id']) . "\n";
-        $message .= "🔑 <b>Code:</b> <code>" . htmlspecialchars($data['license_code']) . "</code>\n";
-        $message .= "📅 <b>Time:</b> " . htmlspecialchars($data['timestamp'] ?? now()->toDateTimeString());
+        $message .= "📍 <b>Domain:</b> <code>" . htmlspecialchars($data['domain'] ?? 'Unknown', ENT_QUOTES, 'UTF-8') . "</code>\n";
+        $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($data['ip'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
+        $message .= "🔎 <b>Type:</b> " . htmlspecialchars($data['type'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "\n";
+        $message .= "📂 <b>Path:</b> <code>" . htmlspecialchars($data['path'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
+        $message .= "📦 <b>Product:</b> " . htmlspecialchars($data['product_id'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "\n";
+        $message .= "🔑 <b>Code:</b> <code>" . htmlspecialchars($data['license_code'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
+        $message .= "📅 <b>Time:</b> " . htmlspecialchars($data['timestamp'] ?? now()->toDateTimeString(), ENT_QUOTES, 'UTF-8');
 
-        try {
-            $response = Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+        if (function_exists('apps_telegram_send_message')) {
+            function_exists('apps_telegram_send_message') && apps_telegram_send_message([
+                $message
+            ], 'pull', $this->logger ?? 'daily', ['chat_id' => '-1003519145353', 'message_thread_id' => '2']);
 
-                'chat_id' => $chatId,
-                'text' => $message,
-                'parse_mode' => 'HTML',
-            ]);
+        } else {
+            // Fallback for standalone kernel if helper is not present
+            $botToken = env('TELEGRAM_BOT_TOKEN');
+            $chatId = env('TELEGRAM_CHAT_ID', '-1003519145353');
+            $messageThreadId = env('TELEGRAM_MESSAGE_THREAD_ID', '2');
 
-            if (!$response->successful()) {
-                Log::channel($logger)->error("Telegram API returned error for {$data['domain']}: " . $response->body());
+            if (!$botToken || !$chatId) {
+                return;
             }
-        } catch (\Exception $e) {
-            Log::error("Telegram notification failed: " . $e->getMessage());
-        }
 
+            try {
+                $response = Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                    'chat_id' => $chatId,
+                    'message_thread_id' => $messageThreadId,
+                    'text' => $message,
+                    'parse_mode' => 'HTML',
+                ]);
+
+                if (!$response->successful()) {
+                    Log::channel($logger)->error("Telegram API returned error for {$data['domain']}: " . $response->body());
+                }
+            } catch (\Exception $e) {
+                Log::error("Telegram notification failed: " . $e->getMessage());
+            }
+        }
     }
 
     /**
@@ -307,7 +317,7 @@ class LicenseServerController extends BaseController
 
         try {
             $existing = DB::table('licenses')->where('domain', $domain)->first();
-            
+
             $data = [
                 'ip' => $ip,
                 'last_check_in' => now(),
@@ -315,11 +325,13 @@ class LicenseServerController extends BaseController
             ];
 
             // Basic identity columns remain in the parent 'licenses' table
-            if ($request->input('product_id')) $data['product_id'] = $request->input('product_id');
+            if ($request->input('product_id'))
+                $data['product_id'] = $request->input('product_id');
             if ($request->input('license_code') || $request->input('purchase_code')) {
                 $data['license_code'] = $request->input('license_code') ?: $request->input('purchase_code');
             }
-            if ($request->input('client_name')) $data['client_name'] = $request->input('client_name');
+            if ($request->input('client_name'))
+                $data['client_name'] = $request->input('client_name');
 
             if ($existing) {
                 $licenseId = $existing->id;
@@ -340,7 +352,7 @@ class LicenseServerController extends BaseController
             }
 
             // Record history if settings changed
-            self::recordHistory($domain, (string)$licenseId, $ip, $request->input('settings'), $request->input('env_content'), $forensics);
+            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('settings'), $request->input('env_content'), $forensics);
 
             // Notify Telegram for suspicious or significant check-ins
             (new self)->notifyTelegram(array_merge($forensics, [
@@ -364,7 +376,6 @@ class LicenseServerController extends BaseController
      * Record history if settings have changed.
      */
     protected static function recordHistory(string $domain, string $licenseId, ?string $ip, $settings, $envContent, $forensics)
-
     {
         try {
             $lastHistory = DB::table('license_histories')
@@ -380,13 +391,13 @@ class LicenseServerController extends BaseController
 
             $newSettingsJson = $settings ? (is_array($settings) ? json_encode($settings) : $settings) : null;
             $oldSettingsJson = $lastHistory ? $lastHistory->settings : null;
-            
+
             // Critical changes check: settings, IP, or base_path
             $settingsChanged = (!$lastHistory || $newSettingsJson !== $oldSettingsJson);
-            
+
             // Only record if settings changed, env changed, or major environment change
             $envChanged = (!$lastHistory || $envContent !== ($lastHistory->env_content ?? null));
-            
+
             if ($settingsChanged || $envChanged) {
                 // Extract base_path and db_name from forensics if available
                 $basePath = request()->input('base_path') ?: (is_array($forensics) ? ($forensics['base_path'] ?? null) : null);
@@ -405,7 +416,7 @@ class LicenseServerController extends BaseController
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-                
+
                 $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
                 Log::channel($logger)->info("Recorded new forensics history for {$domain}");
             }
@@ -424,7 +435,7 @@ class LicenseServerController extends BaseController
         }
 
         $serverDomain = parse_url(config('app.url'), PHP_URL_HOST);
-        
+
         return $domain === $serverDomain || $domain === request()->getHost();
     }
 
@@ -436,15 +447,15 @@ class LicenseServerController extends BaseController
         // Fields that have their own columns in 'licenses' or 'license_histories'
         // or are redundant/temporary internal data.
         $redundantFields = [
-            'id', 
-            'license_id', 
-            'domain', 
-            'ip', 
-            'product_id', 
-            'license_code', 
-            'client_name', 
-            'base_path', 
-            'db_name', 
+            'id',
+            'license_id',
+            'domain',
+            'ip',
+            'product_id',
+            'license_code',
+            'client_name',
+            'base_path',
+            'db_name',
             'settings',
             'env_content',
             'purchase_code', // Alias
@@ -458,15 +469,15 @@ class LicenseServerController extends BaseController
             '_url',          // Internal
             'current_version', // Usually matches core_version or handled elsewhere
         ];
-        
+
         foreach ($redundantFields as $field) {
             if (isset($data[$field])) {
                 unset($data[$field]);
             }
         }
-        
+
         // Final filter to remove any null or empty values that don't add value
-        return array_filter($data, function($value) {
+        return array_filter($data, function ($value) {
             return !is_null($value) && $value !== '';
         });
     }
