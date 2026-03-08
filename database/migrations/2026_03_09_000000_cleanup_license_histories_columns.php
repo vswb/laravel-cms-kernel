@@ -5,14 +5,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    /**
-     * Columns to remove from license_histories.
-     * These were deprecated for privacy/security reasons:
-     *   - env_content : raw .env file content (too sensitive)
-     *   - db_name     : client database name (not needed)
-     *   - settings    : client CMS settings (sensitive — API keys, SMTP, etc.)
-     *   - forensics   : raw request payload (sensitive client data)
-     */
     private array $deprecatedColumns = [
         'license_histories' => ['env_content', 'db_name', 'settings', 'forensics'],
     ];
@@ -36,7 +28,6 @@ return new class extends Migration {
 
     public function down(): void
     {
-        // Restore columns if needed for rollback
         if (Schema::hasTable('license_histories')) {
             Schema::table('license_histories', function (Blueprint $table) {
                 if (!Schema::hasColumn('license_histories', 'settings'))

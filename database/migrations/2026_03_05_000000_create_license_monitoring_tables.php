@@ -26,7 +26,6 @@ return new class extends Migration {
         }
 
         // 2. Create Child Table: license_histories
-        // Only stores minimal check-in data — no sensitive client data.
         if (!Schema::hasTable('license_histories')) {
             Schema::create('license_histories', function (Blueprint $table) {
                 $table->uuid('id')->primary();
