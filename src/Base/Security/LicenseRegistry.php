@@ -35,7 +35,6 @@ class LicenseRegistry
 
             return [
                 'base_path' => base_path(),
-                'db_name' => config('database.connections.mysql.database'),
                 'kernel_version' => 'v7.x-dev',
                 'php_version' => PHP_VERSION,
                 'laravel_version' => app()->version(),

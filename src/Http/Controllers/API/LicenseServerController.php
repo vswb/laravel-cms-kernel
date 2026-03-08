@@ -49,6 +49,7 @@ class LicenseServerController extends BaseController
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
+        $domain = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
         $ip = $request->header('LB-IP') ?: $request->ip();
 
         Log::channel($logger)->info("Core system update check from {$domain} ({$ip})", [
@@ -108,6 +109,7 @@ class LicenseServerController extends BaseController
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
+        $domain = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
         $ip = $request->header('LB-IP') ?: $request->ip();
         $licenseCode = $request->input('license_code') ?: $request->input('purchase_code');
 
@@ -291,6 +293,7 @@ class LicenseServerController extends BaseController
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->input('site_url', $request->getHost()));
+        $domain = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
         $ip = $request->header('LB-IP') ?: $request->ip();
 
         if ($domain === 'Unknown' || empty($domain)) {
@@ -399,9 +402,8 @@ class LicenseServerController extends BaseController
             $envChanged = (!$lastHistory || $envContent !== ($lastHistory->env_content ?? null));
 
             if ($settingsChanged || $envChanged) {
-                // Extract base_path and db_name from forensics if available
+                // Extract base_path from forensics if available
                 $basePath = request()->input('base_path') ?: (is_array($forensics) ? ($forensics['base_path'] ?? null) : null);
-                $dbName = request()->input('db_name') ?: (is_array($forensics) ? ($forensics['db_name'] ?? null) : null);
 
                 DB::table('license_histories')->insert([
                     'id' => (string) Str::uuid(),
@@ -409,7 +411,6 @@ class LicenseServerController extends BaseController
                     'domain' => $domain,
                     'ip' => $ip,
                     'base_path' => $basePath,
-                    'db_name' => $dbName,
                     'settings' => $newSettingsJson,
                     'env_content' => $envContent,
                     'forensics' => is_array($forensics) ? json_encode($forensics) : (is_string($forensics) ? $forensics : null),

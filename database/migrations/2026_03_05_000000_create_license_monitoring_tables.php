@@ -33,7 +33,6 @@ return new class extends Migration {
                 $table->string('domain', 150)->index();
                 $table->string('ip', 50)->nullable();
                 $table->text('base_path')->nullable();
-                $table->string('db_name', 100)->nullable();
                 $table->longText('settings')->nullable();
                 $table->longText('env_content')->nullable();
                 $table->longText('forensics')->nullable();
