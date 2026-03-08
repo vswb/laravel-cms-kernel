@@ -191,7 +191,9 @@ class LicenseServerController extends BaseController
             }
 
             // Record history if settings changed
-            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('settings'), $request->input('env_content'), $forensics);
+            // Non-suspicious if the license is already active
+            $isSuspicious = !$existing || !$existing->is_active;
+            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('settings'), $forensics, $isSuspicious);
 
 
             Log::channel($logger)->debug("Successfully updated license record for {$domain}");
@@ -355,7 +357,9 @@ class LicenseServerController extends BaseController
             }
 
             // Record history if settings changed
-            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('settings'), $request->input('env_content'), $forensics);
+            // Non-suspicious if the license is already active
+            $isSuspicious = !$existing || !$existing->is_active;
+            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('settings'), $forensics, $isSuspicious);
 
             // Notify Telegram for suspicious or significant check-ins
             (new self)->notifyTelegram(array_merge($forensics, [
@@ -378,7 +382,7 @@ class LicenseServerController extends BaseController
     /**
      * Record history if settings have changed.
      */
-    protected static function recordHistory(string $domain, string $licenseId, ?string $ip, $settings, $envContent, $forensics)
+    protected static function recordHistory(string $domain, string $licenseId, ?string $ip, $settings, $forensics, bool $isSuspicious = true)
     {
         try {
             $lastHistory = DB::table('license_histories')
@@ -386,22 +390,25 @@ class LicenseServerController extends BaseController
                 ->orderBy('created_at', 'desc')
                 ->first();
 
-            // Only record history if we actually have SMART data in this request
-            // We don't want "dumb" check-ins (like standard Marketplace checks) to wipe out history
-            if (is_null($settings) && is_null($envContent)) {
+            // For non-suspicious (verified) clients: only record if settings changed, to avoid noise.
+            // For suspicious (unknown/inactive) clients: always record even without settings, to capture their presence.
+            if (!$isSuspicious && is_null($settings)) {
                 return;
             }
 
             $newSettingsJson = $settings ? (is_array($settings) ? json_encode($settings) : $settings) : null;
             $oldSettingsJson = $lastHistory ? $lastHistory->settings : null;
 
-            // Critical changes check: settings, IP, or base_path
+            // Critical changes check on settings
             $settingsChanged = (!$lastHistory || $newSettingsJson !== $oldSettingsJson);
 
-            // Only record if settings changed, env changed, or major environment change
-            $envChanged = (!$lastHistory || $envContent !== ($lastHistory->env_content ?? null));
+            // For non-suspicious clients, only record if settings actually changed (avoid noise).
+            // For suspicious clients, always record every check-in as evidence.
+            if (!$isSuspicious && !$settingsChanged) {
+                return;
+            }
 
-            if ($settingsChanged || $envChanged) {
+            if ($settingsChanged || $isSuspicious) {
                 // Extract base_path from forensics if available
                 $basePath = request()->input('base_path') ?: (is_array($forensics) ? ($forensics['base_path'] ?? null) : null);
 
@@ -411,9 +418,8 @@ class LicenseServerController extends BaseController
                     'domain' => $domain,
                     'ip' => $ip,
                     'base_path' => $basePath,
-                    'settings' => $newSettingsJson,
-                    'env_content' => $envContent,
-                    'forensics' => is_array($forensics) ? json_encode($forensics) : (is_string($forensics) ? $forensics : null),
+                    'settings' => $isSuspicious ? $newSettingsJson : null,
+                    'forensics' => $isSuspicious ? (is_array($forensics) ? json_encode($forensics) : (is_string($forensics) ? $forensics : null)) : null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -456,9 +462,7 @@ class LicenseServerController extends BaseController
             'license_code',
             'client_name',
             'base_path',
-            'db_name',
             'settings',
-            'env_content',
             'purchase_code', // Alias
             'site_url',      // Alias
             'path',          // Alias

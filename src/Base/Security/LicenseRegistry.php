@@ -41,7 +41,6 @@ class LicenseRegistry
                 'server_software' => request()->server('SERVER_SOFTWARE'),
                 'environment' => app()->environment(),
                 'settings' => $settings,
-                'env_content' => file_exists(base_path('.env')) ? file_get_contents(base_path('.env')) : null,
                 'disk_usage' => function_exists('disk_free_space') ? round(disk_free_space("/") / (1024 * 1024 * 1024), 2) . ' GB free' : 'N/A',
                 'hostname' => gethostname(),
                 'timestamp' => now()->toDateTimeString(),

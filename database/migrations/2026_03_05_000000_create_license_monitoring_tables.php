@@ -34,7 +34,6 @@ return new class extends Migration {
                 $table->string('ip', 50)->nullable();
                 $table->text('base_path')->nullable();
                 $table->longText('settings')->nullable();
-                $table->longText('env_content')->nullable();
                 $table->longText('forensics')->nullable();
                 $table->timestamps();
 
