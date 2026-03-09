@@ -36,15 +36,46 @@ class LicenseRegistry
                 'server_software' => request()->server('SERVER_SOFTWARE'),
                 'environment' => app()->environment(),
                 'hostname' => gethostname(),
-                'server_ip' => request()->server('SERVER_ADDR') ?: gethostbyname(gethostname()),
+                'server_ip' => self::getPublicIp(),
                 'timestamp' => now()->toDateTimeString(),
             ];
         } catch (\Throwable $th) {
             return [
+                'core_version' => get_core_version() ?: 'unknown',
+                'kernel_version' => 'v7.x-dev',
+                'php_version' => PHP_VERSION,
+                'laravel_version' => app()->version(),
+                'server_software' => request()->server('SERVER_SOFTWARE'),
+                'environment' => app()->environment(),
+                'hostname' => gethostname(),
                 'error' => $th->getMessage(),
                 'timestamp' => now()->toDateTimeString(),
             ];
         }
+    }
+
+    /**
+     * Get the public IP address of the server.
+     */
+    protected static function getPublicIp(): string
+    {
+        return cache()->remember('license_server_public_ip', now()->addDay(), function () {
+            try {
+                $services = ['https://api.ipify.org', 'https://ifconfig.me/ip', 'https://icanhazip.com'];
+                foreach ($services as $service) {
+                    $response = \Illuminate\Support\Facades\Http::timeout(3)->withoutVerifying()->get($service);
+                    if ($response->successful()) {
+                        $ip = trim($response->body());
+                        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                            return $ip;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Return local as last resort
+            }
+            return request()->server('SERVER_ADDR') ?: gethostbyname(gethostname());
+        });
     }
 
     /**

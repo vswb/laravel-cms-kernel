@@ -278,7 +278,9 @@ class LicenseServerController extends BaseController
 
         // Thêm cảnh báo nếu IP này đang được dùng bởi các domain khác
         $ip = $data['ip'] ?? null;
-        if ($ip && $ip !== '127.0.0.1') {
+        $isPublicIp = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+
+        if ($ip && $isPublicIp) {
             $others = DB::table('licenses')
                 ->where('ip', $ip)
                 ->where('domain', '!=', $data['domain'] ?? '')
