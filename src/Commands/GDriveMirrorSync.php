@@ -248,7 +248,6 @@ class GDriveMirrorSync extends Command
             'clientSecret' => $this->getGdriveSetting('social_login_google_drive_client_secret', 'GOOGLE_DRIVE_CLIENT_SECRET'),
             'refreshToken' => $this->getGdriveSetting('social_login_google_drive_refresh_token', 'GOOGLE_DRIVE_REFRESH_TOKEN'),
             'folder' => $this->getGdriveSetting('social_login_google_drive_folder', 'GOOGLE_DRIVE_ROOT_FOLDER'),
-            'teamDriveId' => $this->getGdriveSetting('social_login_google_drive_team_drive_id', 'GOOGLE_DRIVE_TEAM_DRIVE_ID'),
             'root' => storage_path(''),
         ];
         config(['filesystems.disks.google_drive_mirror' => $config]);
