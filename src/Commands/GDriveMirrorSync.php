@@ -99,35 +99,89 @@ class GDriveMirrorSync extends Command
             }
 
             // 2. Prepare Dynamic Disk Configuration
-            $this->initGoogleDisk();
+            $this->initGoogleDisk(null, 'google_drive_mirror');
 
             $baseLocalPath = storage_path('app/google_drive_mirror');
             $googleDisk = Storage::disk("google_drive_mirror");
-            $targetFolders = (array) $this->argument('folders');
+            $targetIdentifiers = (array) $this->argument('folders');
 
             $stats = ['processed' => 0, 'updated' => 0, 'skipped' => 0, 'deleted' => 0, 'errors' => 0, 'folders' => 0];
 
-            foreach ($targetFolders as $baseFolder) {
-                $this->info("\n🚀 SCANNING GOOGLE DRIVE: {$baseFolder}");
-                Log::channel($this->log_channel)->info("GDrive Sync Started: {$baseFolder}");
+            foreach ($targetIdentifiers as $identifier) {
+                $localPrefix = '';
+                $currentDiskName = "gdrive_tmp_" . substr(md5($identifier), 0, 8);
 
-                // Fetch remote items
-                $this->info("Fetching remote item list (Recursive)...");
-                $iterator = $googleDisk->listContents($baseFolder, true);
-                $remoteItems = []; 
-                foreach ($iterator as $item) {
-                    $remoteItems[$item['path']] = $item;
+                // Check if $identifier is an ID or a Path
+                $isId = (strpos($identifier, '/') === false && strlen($identifier) > 20);
+
+                if ($isId) {
+                    $this->info("\n🚀 RESOLVING PATH FOR GOOGLE DRIVE ID: {$identifier}");
+                    
+                    /** @var mixed $googleDisk */
+                    $googleDisk = Storage::disk('google_drive_mirror');
+                    try {
+                        $resolvedPath = $this->getPathFromId($googleDisk, $identifier);
+                        if ($resolvedPath) {
+                            $this->info("Resolved Path: {$resolvedPath}");
+                            $exploringPath = $resolvedPath;
+                            // When using resolved path, we don't need a localPrefix because the path itself contains all segments
+                            $localPrefix = ''; 
+                        } else {
+                            $this->warn("Could not resolve path for ID. Falling back to ID direct scan.");
+                            $exploringPath = $identifier;
+                        }
+                    } catch (\Throwable $e) {
+                        $this->warn("Path resolution failed: " . $e->getMessage() . ". Falling back to ID direct scan.");
+                        $exploringPath = $identifier;
+                    }
+                } else {
+                    $this->info("\n🚀 SCANNING GOOGLE DRIVE PATH: {$identifier}");
+                    $this->initGoogleDisk(null, $currentDiskName); // Reset to base root
+                    /** @var mixed $googleDisk */
+                    $googleDisk = Storage::disk($currentDiskName);
+                    $exploringPath = $identifier;
                 }
+
+                $this->info("Fetching remote item list (Recursive)...");
+                    /** @var mixed $googleDisk */
+                    $iterator = $googleDisk->listContents($exploringPath, true);
+                    $remoteItems = []; 
+                    foreach ($iterator as $item) {
+                        // Support both Flysystem 1 (array) and Flysystem 3 (object)
+                        $path = is_array($item) ? ($item['path'] ?? null) : (method_exists($item, 'path') ? $item->path() : ($item->path ?? null));
+                        if ($path !== null) {
+                            $remoteItems[$path] = $item;
+                        }
+                    }
+
+                    // Fallback for some adapters where ID disk root is '/'
+                    if ($isId && count($remoteItems) === 0 && $exploringPath === '') {
+                        $this->info("Retrying with root path '/'...");
+                        $iterator = $googleDisk->listContents('/', true);
+                        foreach ($iterator as $item) {
+                            $path = is_array($item) ? ($item['path'] ?? null) : (method_exists($item, 'path') ? $item->path() : ($item->path ?? null));
+                            if ($path !== null) {
+                                $remoteItems[$path] = $item;
+                            }
+                        }
+                    }
 
                 $totalItems = count($remoteItems);
                 $this->info("Found {$totalItems} items. Starting synchronization...");
+
+                if ($totalItems === 0) {
+                    continue;
+                }
 
                 $bar = $this->output->createProgressBar($totalItems);
                 $bar->start();
 
                 foreach ($remoteItems as $relativePath => $item) {
                     $stats['processed']++;
-                    $absoluteLocalPath = "{$baseLocalPath}/{$relativePath}";
+                    
+                    // Adjust local path if using ID (prefix with folder name)
+                    $syncPath = $localPrefix ? $localPrefix . '/' . $relativePath : $relativePath;
+                    $absoluteLocalPath = "{$baseLocalPath}/{$syncPath}";
                     $type = $item['type'];
 
                     if ($type === 'dir') {
@@ -167,6 +221,7 @@ class GDriveMirrorSync extends Command
                             
                             if ($exportSpec) {
                                 // Export Google Native File
+                                /** @var mixed $googleDisk */
                                 $service = $googleDisk->getAdapter()->getService();
                                 $response = $service->files->export($meta['id'], $exportSpec['mime'], ['alt' => 'media']);
                                 File::put($targetLocalPath, $response->getBody()->getContents());
@@ -199,7 +254,7 @@ class GDriveMirrorSync extends Command
 
                 // CLEANUP LOGIC
                 if ($this->option('delete')) {
-                    $this->cleanupOrphans($baseLocalPath, $baseFolder, $remoteItems, $stats);
+                    $this->cleanupOrphans($baseLocalPath, $exploringPath, $remoteItems, $stats, $localPrefix);
                 }
             }
 
@@ -207,7 +262,7 @@ class GDriveMirrorSync extends Command
 
         } catch (\Throwable $th) {
             $this->error("\n💥 Fatal Error: " . $th->getMessage());
-            Log::channel($this->log_channel)->error("GDrive Mirror Fatal Exception", ['msg' => $th->getMessage()]);
+            Log::channel($this->log_channel)->error("GDrive Mirror Fatal Exception", ['msg' => $th->getMessage(), 'trace' => $th->getTraceAsString()]);
             return Command::FAILURE;
         }
 
@@ -240,26 +295,32 @@ class GDriveMirrorSync extends Command
     /**
      * Initializing the Google Drive Disk Config
      */
-    protected function initGoogleDisk()
+    protected function initGoogleDisk($specificFolderId = null, $diskName = 'google_drive_mirror')
     {
         $config = [
             'driver' => 'google',
-            'clientId' => $this->getGdriveSetting('social_login_google_drive_client_id', 'GOOGLE_DRIVE_CLIENT_ID'),
-            'clientSecret' => $this->getGdriveSetting('social_login_google_drive_client_secret', 'GOOGLE_DRIVE_CLIENT_SECRET'),
+            'clientId' => $this->getGdriveSetting('social_login_google_app_id', 'GOOGLE_DRIVE_CLIENT_ID'),
+            'clientSecret' => $this->getGdriveSetting('social_login_google_app_secret', 'GOOGLE_DRIVE_CLIENT_SECRET'),
             'refreshToken' => $this->getGdriveSetting('social_login_google_drive_refresh_token', 'GOOGLE_DRIVE_REFRESH_TOKEN'),
-            'folder' => $this->getGdriveSetting('social_login_google_drive_folder', 'GOOGLE_DRIVE_ROOT_FOLDER'),
-            'root' => storage_path(''),
+            'folder' => $specificFolderId ?: $this->getGdriveSetting('social_login_google_drive_folder', 'GOOGLE_DRIVE_ROOT_FOLDER'),
+            'folder_id' => $specificFolderId ?: $this->getGdriveSetting('social_login_google_drive_folder', 'GOOGLE_DRIVE_ROOT_FOLDER'),
+            // 'root' => storage_path(''),
         ];
-        config(['filesystems.disks.google_drive_mirror' => $config]);
+        config(["filesystems.disks.{$diskName}" => $config]);
+        
+        // Force Laravel to forget the disk instance so it picks up the new config
+        if (app()->resolved('filesystem')) {
+            Storage::forgetDisk($diskName);
+        }
     }
 
     /**
      * Delete files locally that are no longer on Drive
      */
-    protected function cleanupOrphans($basePath, $baseFolder, $remoteItems, &$stats)
+    protected function cleanupOrphans($basePath, $baseFolder, $remoteItems, &$stats, $localPrefix = '')
     {
         $this->info("Cleaning up local orphans for '{$baseFolder}'...");
-        $localFolder = "{$basePath}/{$baseFolder}";
+        $localFolder = $localPrefix ? "{$basePath}/{$localPrefix}" : "{$basePath}/{$baseFolder}";
         if (!File::isDirectory($localFolder)) return;
 
         $localFiles = File::allFiles($localFolder);
@@ -267,11 +328,16 @@ class GDriveMirrorSync extends Command
             $fullPath = $file->getRealPath();
             $relativePath = Str::after($fullPath, $basePath . '/');
 
-            // Handle Office extensions when matching against remote original path
+            // Handle local prefix when matching against remote original path
             $checkPath = $relativePath;
+            if ($localPrefix && Str::startsWith($relativePath, $localPrefix . '/')) {
+                $checkPath = Str::after($relativePath, $localPrefix . '/');
+            }
+
+            // Handle Office extensions
             foreach ($this->exportMap as $mime => $spec) {
-                if (Str::endsWith($relativePath, '.' . $spec['ext'])) {
-                    $potentialOriginal = Str::beforeLast($relativePath, '.' . $spec['ext']);
+                if (Str::endsWith($checkPath, '.' . $spec['ext'])) {
+                    $potentialOriginal = Str::beforeLast($checkPath, '.' . $spec['ext']);
                     if (isset($remoteItems[$potentialOriginal])) {
                         $checkPath = $potentialOriginal;
                         break;
@@ -301,6 +367,36 @@ class GDriveMirrorSync extends Command
         $this->comment("❌ Errors encountered: {$stats['errors']}");
         $this->info(str_repeat("=", 50));
         $this->info("Storage: {$baseLocalPath}");
+    }
+
+    /**
+     * Resolve the full path of a Google Drive ID by tracing ancestors
+     */
+    protected function getPathFromId($googleDisk, $id)
+    {
+        $service = $googleDisk->getAdapter()->getService();
+        $pathSegments = [];
+        $currentId = $id;
+
+        while ($currentId) {
+            $file = $service->files->get($currentId, ['fields' => 'id, name, parents']);
+            if (!$file) break;
+
+            // Stop if we hit the root or a folder without a name (unlikely)
+            if ($file->getName() === 'My Drive' || $file->getName() === 'Root') {
+                break;
+            }
+
+            array_unshift($pathSegments, $file->getName());
+
+            $parents = $file->getParents();
+            if (empty($parents)) {
+                break;
+            }
+            $currentId = $parents[0];
+        }
+
+        return implode('/', $pathSegments);
     }
 }
 
