@@ -6,7 +6,7 @@ If you want to store files in your Google Drive root directory, then the folder 
 
 Because Google Drive allows duplicate names, it identifies each file and folder with a unique ID. If you open your folder, you will see the **Folder ID** in the URL.
 
-<img width="807" alt="Folder ID" src="https://apis.pull.vn/google-drive-guide/d79422ba-e56b-11e6-8ba6-01c622fdef42.png">
+<img width="807" alt="Folder ID" src="https://raw.githubusercontent.com/vswb/laravel-cms-kernel/v7.x/public/google-drive-guide/d79422ba-e56b-11e6-8ba6-01c622fdef42.png">
 
 ------
 

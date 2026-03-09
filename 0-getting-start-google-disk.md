@@ -46,9 +46,9 @@ I have included [GoogleDriveAdapter](app/Providers/GoogleDriveAdapter.php) and [
 
 Detailed information on how to obtain your API ID, secret and refresh token:
 
--   [Getting your Client ID and Secret](README/1-getting-your-dlient-id-and-secret.md)
--   [Getting your Refresh Token](README/2-getting-your-refresh-token.md)
--   [Getting your Root Folder ID](README/3-getting-your-root-folder-id.md)
+-   [Getting your Client ID and Secret](1-getting-your-dlient-id-and-secret.md)
+-   [Getting your Refresh Token](2-getting-your-refresh-token.md)
+-   [Getting your Root Folder ID](3-getting-your-root-folder-id.md)
 
 ## Update `.env` file
 

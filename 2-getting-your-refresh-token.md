@@ -8,22 +8,22 @@ Go to https://developers.google.com/oauthplayground.
 
 In the top right corner, click the settings icon, check "Use your own OAuth credentials" and paste your Client ID and Client Secret.
 
-<img width="463" alt="Use your own OAuth credentials" src="https://apis.pull.vn/google-drive-guide/22397216-24fe7d88-e56d-11e6-82cf-2d75365d8800.png">
+<img width="463" alt="Use your own OAuth credentials" src="https://raw.githubusercontent.com/vswb/laravel-cms-kernel/v7.x/public/google-drive-guide/24fe7d88-e56d-11e6-82cf-2d75365d8800.png">
 
 In step 1 on the left, scroll to "Drive API v3", expand it and check the first drive scope.
 
-<img width="488" alt="Check Scopes" src="https://apis.pull.vn/google-drive-guide/28462312-fa4397ea-6e1a-11e7-93ad-365b891052a6.png">
+<img width="488" alt="Check Scopes" src="https://raw.githubusercontent.com/vswb/laravel-cms-kernel/v7.x/public/google-drive-guide/28462312-fa4397ea-6e1a-11e7-93ad-365b891052a6.png">
 
 Click "Authorize APIs" and allow access to your account when prompted.
 There will be a few warning prompts, just proceed.
 
 When you get to step 2, check "Auto-refresh the token before it expires" and click "Exchange authorization code for tokens".
 
-<img width="493" alt="Exchange authorization code for tokens" src="https://apis.pull.vn/google-drive-guide/22397183-8472095c-e56c-11e6-85be-83adf00837c7.png">
+<img width="493" alt="Exchange authorization code for tokens" src="https://raw.githubusercontent.com/vswb/laravel-cms-kernel/v7.x/public/google-drive-guide/8472095c-e56c-11e6-85be-83adf00837c7.png">
 
 When you get to step 3, click on step 2 again and you should see your **refresh token**.
 
-<img width="487" alt="Refresh Token" src="https://apis.pull.vn/google-drive-guide/22397176-2cef7a98-e56c-11e6-83b9-b4653850dbca.png">
+<img width="487" alt="Refresh Token" src="https://raw.githubusercontent.com/vswb/laravel-cms-kernel/v7.x/public/google-drive-guide/2cef7a98-e56c-11e6-83b9-b4653850dbca.png">
 
 ---
 
