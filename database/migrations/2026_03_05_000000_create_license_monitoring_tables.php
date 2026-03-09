@@ -19,7 +19,10 @@ return new class extends Migration {
                 $table->string('product_id', 50)->nullable();
                 $table->string('license_code', 100)->nullable();
                 $table->string('client_name', 150)->nullable();
-                $table->string('status', 20)->default('pending')->index(); // pending, verified, revoked, fraud
+                $table->enum('status', ['pending', 'verified', 'revoked', 'fraud', 'tracked'])
+                    ->default('pending')
+                    ->index()
+                    ->comment('pending: New/First check-in, verified: Manually approved customer, revoked: Terminated/Expired, fraud: Blacklisted/Confirmed theft, tracked: Silent monitoring mode');
                 $table->timestamp('last_check_in')->nullable();
                 $table->timestamps();
             });
