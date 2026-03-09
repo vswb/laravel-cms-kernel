@@ -138,37 +138,42 @@ class LicenseServerController extends BaseController
                     $secret = 'VERIFY-' . config('core.base.general.api_key', LicenseRegistry::getLicenseKey());
                     $expectedSignature = hash_hmac('sha256', $decoded['domain'] . '|' . $decoded['expiry'], $secret);
 
-                    // 1. Silent Detection (No blocking, just record violation)
-                    if (trim(strtolower($decoded['domain'])) !== trim(strtolower($domain))) {
-                        Log::channel($logger)->warning("UNLICENSED CLONE DETECTED! File belongs to {$decoded['domain']} but request came from {$domain} ({$ip})");
+                    // 1. Skip Legal Alerts for Development/Local environments
+                    if ($this->isDevelopmentDomain($domain)) {
+                         Log::channel($logger)->debug("Development domain detected ({$domain}), skipping legal check.");
+                    } else {
+                        // 2. Intelligent Domain Matching (Allow subdomains of the licensed domain)
+                        $isOriginal = trim(strtolower($decoded['domain']));
+                        $isCurrent  = trim(strtolower($domain));
                         
-                        // Mark as inactive/fraudulent in our DB but let them keep running
-                        $this->notifyTelegram(array_merge($forensics, [
-                            'legal_alert'  => true,
-                            'original_domain' => $decoded['domain'],
-                            'domain'       => $domain,
-                            'ip'           => $ip,
-                            'type'         => 'LEGAL_DETECTION',
-                            'license_code' => $decoded['license_code'] ?? 'N/A',
-                        ]));
+                        // Check if current is same as original OR a subdomain of original
+                        $isMatch = ($isCurrent === $isOriginal) || (str_ends_with($isCurrent, '.' . $isOriginal));
 
-                        // Still return success to keep them running (silent detection)
-                        return response()->json([
-                            'status'       => true,
-                            'message'      => 'Connection verified.',
-                            'lic_response' => $request->input('license_file')
-                        ]);
+                        if (!$isMatch) {
+                            Log::channel($logger)->warning("UNLICENSED CLONE DETECTED! File belongs to {$isOriginal} but request came from {$isCurrent} ({$ip})");
+                            
+                            // Send legal alert for real production clones only
+                            $this->notifyTelegram(array_merge($forensics, [
+                                'legal_alert'     => true,
+                                'original_domain' => $isOriginal,
+                                'domain'          => $isCurrent,
+                                'ip'              => $ip,
+                                'type'            => 'LEGAL_DETECTION',
+                                'license_code'    => $decoded['license_code'] ?? 'N/A',
+                            ]));
+
+                            return response()->json([
+                                'status'       => true,
+                                'message'      => 'Connection verified.',
+                                'lic_response' => $request->input('license_file')
+                            ]);
+                        }
                     }
 
-                    // 2. Validate Signature
+                    // 3. Passive Renewal: If it's a valid match, always return a fresh signed response to extend storage cache
                     if (hash_equals($expectedSignature, $decoded['signature'])) {
-                        // Check expiration (Silent check - keep success even if expired)
-                        if (now()->greaterThan(\Carbon\Carbon::parse($decoded['expiry']))) {
-                             Log::channel($logger)->warning("License expired for {$domain}, but keeping active for monitoring.");
-                        }
-
                         $licenseCode = $decoded['license_code'] ?? $licenseCode;
-                        Log::channel($logger)->debug("Verified signed license file for {$domain}");
+                        Log::channel($logger)->debug("Verified valid license for {$domain}. Issuing passive renewal.");
                     } else {
                         Log::channel($logger)->error("Tampered license file detected for {$domain}");
                     }
@@ -473,5 +478,25 @@ class LicenseServerController extends BaseController
         $serverDomain = parse_url(config('app.url'), PHP_URL_HOST);
 
         return $domain === $serverDomain || $domain === request()->getHost();
+    }
+
+    /**
+     * Identify if a domain is a local or development environment.
+     */
+    protected function isDevelopmentDomain(string $domain): bool
+    {
+        $domain = strtolower($domain);
+        $devKeywords = [
+            'localhost', '127.0.0.1', '.test', '.example', '.invalid', '.localhost',
+            'staging.', 'dev.', 'test.', 'local.', 'demo.'
+        ];
+
+        foreach ($devKeywords as $keyword) {
+            if (str_contains($domain, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
