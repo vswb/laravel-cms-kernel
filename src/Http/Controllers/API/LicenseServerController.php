@@ -126,6 +126,8 @@ class LicenseServerController extends BaseController
             ]);
         }
 
+        $forensics = self::buildForensics($request, $type);
+
         // 2. Strict License File Verification (If provided)
         if ($request->has('license_file')) {
             try {
@@ -136,36 +138,45 @@ class LicenseServerController extends BaseController
                     $secret = 'VERIFY-' . config('core.base.general.api_key', LicenseRegistry::getLicenseKey());
                     $expectedSignature = hash_hmac('sha256', $decoded['domain'] . '|' . $decoded['expiry'], $secret);
 
-                    // 1. Strict Domain Locking Check
+                    // 1. Silent Detection (No blocking, just record violation)
                     if (trim(strtolower($decoded['domain'])) !== trim(strtolower($domain))) {
-                        Log::channel($logger)->warning("License domain mismatch! File belongs to {$decoded['domain']} but request came from {$domain}");
+                        Log::channel($logger)->warning("UNLICENSED CLONE DETECTED! File belongs to {$decoded['domain']} but request came from {$domain} ({$ip})");
+                        
+                        // Mark as inactive/fraudulent in our DB but let them keep running
+                        $this->notifyTelegram(array_merge($forensics, [
+                            'legal_alert'  => true,
+                            'original_domain' => $decoded['domain'],
+                            'domain'       => $domain,
+                            'ip'           => $ip,
+                            'type'         => 'LEGAL_DETECTION',
+                            'license_code' => $decoded['license_code'] ?? 'N/A',
+                        ]));
+
+                        // Still return success to keep them running (silent detection)
                         return response()->json([
-                            'status' => false, 
-                            'message' => 'This license file is locked to ' . $decoded['domain'] . ' and cannot be used on this domain.'
+                            'status'       => true,
+                            'message'      => 'Connection verified.',
+                            'lic_response' => $request->input('license_file')
                         ]);
                     }
 
                     // 2. Validate Signature
                     if (hash_equals($expectedSignature, $decoded['signature'])) {
-                        // Check expiration
+                        // Check expiration (Silent check - keep success even if expired)
                         if (now()->greaterThan(\Carbon\Carbon::parse($decoded['expiry']))) {
-                             Log::channel($logger)->warning("License expired for {$domain} at {$decoded['expiry']}");
-                             return response()->json(['status' => false, 'message' => 'Your license has expired.']);
+                             Log::channel($logger)->warning("License expired for {$domain}, but keeping active for monitoring.");
                         }
 
                         $licenseCode = $decoded['license_code'] ?? $licenseCode;
-                        Log::channel($logger)->debug("Verified signed and domain-locked license file for {$domain}");
+                        Log::channel($logger)->debug("Verified signed license file for {$domain}");
                     } else {
-                        Log::channel($logger)->warning("Invalid signature in license file for {$domain}");
-                        return response()->json(['status' => false, 'message' => 'Invalid license signature.']);
+                        Log::channel($logger)->error("Tampered license file detected for {$domain}");
                     }
                 }
             } catch (\Exception $e) {
                 Log::channel($logger)->error("License file verification failed for {$domain}: " . $e->getMessage());
             }
         }
-
-        $forensics = self::buildForensics($request, $type);
 
         // Manage license records in DB
         try {
@@ -246,10 +257,19 @@ class LicenseServerController extends BaseController
     {
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
-        $message = "🚨 <b>LICENSING ALERT</b> 🚨\n";
-        $message .= "--------------------------\n";
-        $message .= "📍 <b>Domain:</b> <code>" . htmlspecialchars($data['domain'] ?? 'Unknown', ENT_QUOTES, 'UTF-8') . "</code>\n";
-        $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($data['ip'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
+        if (!empty($data['legal_alert'])) {
+            $message  = "⚖️ <b>LEGAL EVIDENCE DETECTED</b> ⚖️\n";
+            $message .= "--------------------------\n";
+            $message .= "🚩 <b>Unlicensed Domain:</b> <code>" . htmlspecialchars($data['domain'] ?? 'Unknown', ENT_QUOTES, 'UTF-8') . "</code>\n";
+            $message .= "🔒 <b>Locked to Domain:</b> <code>" . htmlspecialchars($data['original_domain'] ?? 'Unknown', ENT_QUOTES, 'UTF-8') . "</code>\n";
+            $message .= "🌐 <b>Server IP:</b> <code>" . htmlspecialchars($data['ip'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
+            $message .= "🚨 <b>Action:</b> Forwarding to Legal Department.\n";
+        } else {
+            $message  = "🚨 <b>LICENSING ALERT</b> 🚨\n";
+            $message .= "--------------------------\n";
+            $message .= "📍 <b>Domain:</b> <code>" . htmlspecialchars($data['domain'] ?? 'Unknown', ENT_QUOTES, 'UTF-8') . "</code>\n";
+            $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($data['ip'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
+        }
 
         // Thêm cảnh báo nếu IP này đang được dùng bởi các domain khác
         $ip = $data['ip'] ?? null;
