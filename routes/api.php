@@ -53,7 +53,7 @@ Route::group([
         return response()->json([
             'error' => false,
             'data' => null,
-            'message' => 'The system is already running the latest version. For further assistance, please contact us at contact@visualweber.com or call +84 943 999 819',
+            'message' => 'Congratulations! Your core system is running the latest official version. Your platform is fully optimized for maximum performance and protected with the latest security enhancements.',
         ]);
     })->name('license.check-update');
 
