@@ -107,7 +107,7 @@ class LicenseServerController extends BaseController
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
-        $domain = preg_replace('/^https?:\/\//', '', rtrim((string) $domain, '/'));
+        $domain = self::normalizeDomain($domain);
 
         // 1. Prioritize Server IP sent by client, fallback to request connection IP
         $ip = $request->input('server_ip') ?: ($request->header('LB-IP') ?: $request->ip());
@@ -232,7 +232,17 @@ class LicenseServerController extends BaseController
                 'activated_at' => now()->toDateTimeString(),
                 'license_code' => $licenseCode ?: 'AUTOBOT-REGISTERED',
             ]));
+
             Log::channel($logger)->info("Issuing/Renewing signed certificate for verified domain: {$domain}");
+
+            // Notify Telegram of successful issuance
+            $this->notifyTelegram(array_merge($forensics, [
+                'type'         => 'LICENSE_ISSUED',
+                'domain'       => $domain,
+                'ip'           => $ip,
+                'expiry'       => $expiryDate,
+                'license_code' => $licenseCode ?: 'AUTOBOT-REGISTERED',
+            ]));
         } else {
             Log::channel($logger)->info("Skipping certificate issuance for unverified domain: {$domain} (Status: {$currentStatus})");
         }
@@ -258,6 +268,14 @@ class LicenseServerController extends BaseController
             $message .= "🔒 <b>Locked to Domain:</b> <code>" . htmlspecialchars($data['original_domain'] ?? 'Unknown', ENT_QUOTES, 'UTF-8') . "</code>\n";
             $message .= "🌐 <b>Server IP:</b> <code>" . htmlspecialchars($data['ip'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
             $message .= "🚨 <b>Action:</b> Forwarding to Legal Department.\n";
+        } elseif (($data['type'] ?? '') === 'LICENSE_ISSUED') {
+            $message  = "✅ <b>LICENSE ISSUED SUCCESSFULLY</b> ✅\n";
+            $message .= "--------------------------\n";
+            $message .= "📍 <b>Domain:</b> <code>" . htmlspecialchars($data['domain'] ?? 'Unknown', ENT_QUOTES, 'UTF-8') . "</code>\n";
+            $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($data['ip'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
+            $message .= "📅 <b>Expiry:</b> <code>" . htmlspecialchars($data['expiry'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
+            $message .= "🔑 <b>Code:</b> <code>" . htmlspecialchars($data['license_code'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
+            $message .= "🚀 <b>Status:</b> Activated & Storage File Created.\n";
         } else {
             $message  = "🚨 <b>LICENSING ALERT</b> 🚨\n";
             $message .= "--------------------------\n";
@@ -328,7 +346,7 @@ class LicenseServerController extends BaseController
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->input('site_url', $request->getHost()));
-        $domain = preg_replace('/^https?:\/\//', '', rtrim((string) $domain, '/'));
+        $domain = self::normalizeDomain($domain);
 
         // 1. Prioritize Server IP sent by client, fallback to request connection IP
         $ip = $request->input('server_ip') ?: ($request->header('LB-IP') ?: $request->ip());
@@ -420,6 +438,22 @@ class LicenseServerController extends BaseController
         ], $extra);
 
         return array_filter($data, fn($v) => !is_null($v) && $v !== '');
+    }
+
+    /**
+     * Normalize domain string by removing protocol and 'www.' prefix.
+     */
+    protected static function normalizeDomain(string $domain): string
+    {
+        // 1. Remove protocol (http/https)
+        $domain = preg_replace('/^https?:\/\//', '', rtrim(strtolower((string) $domain), '/'));
+        
+        // 2. Remove 'www.' prefix
+        if (str_starts_with($domain, 'www.')) {
+            $domain = substr($domain, 4);
+        }
+
+        return $domain;
     }
 
     /**
