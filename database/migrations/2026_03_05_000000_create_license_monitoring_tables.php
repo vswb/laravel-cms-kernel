@@ -19,8 +19,8 @@ return new class extends Migration {
                 $table->string('product_id', 50)->nullable();
                 $table->string('license_code', 100)->nullable();
                 $table->string('client_name', 150)->nullable();
+                $table->string('status', 20)->default('pending')->index(); // pending, verified, revoked, fraud
                 $table->timestamp('last_check_in')->nullable();
-                $table->boolean('is_active')->default(0);
                 $table->timestamps();
             });
         }

@@ -66,7 +66,7 @@ class LicenseServerController extends BaseController
         return response()->json([
             'status' => true,
             'data' => null,
-            'message' => 'Your system is up to date.',
+            'message' => 'Congratulations! Your core system is running the latest official version. Your platform is fully optimized for maximum performance and protected with the latest security enhancements.',
         ]);
     }
 
@@ -190,7 +190,7 @@ class LicenseServerController extends BaseController
             $data = [
                 'ip' => $ip,
                 'last_check_in' => now(),
-                'is_active' => 1,
+                'status' => 'pending', // Requires audit
                 'updated_at' => now(),
             ];
 
@@ -361,6 +361,7 @@ class LicenseServerController extends BaseController
             $data = [
                 'ip' => $ip,
                 'last_check_in' => now(),
+                'status' => 'tracked', // Just monitoring
                 'updated_at' => now(),
             ];
 
@@ -383,7 +384,6 @@ class LicenseServerController extends BaseController
                 $licenseId = (string) Str::uuid();
                 $data['id'] = $licenseId;
                 $data['domain'] = $domain;
-                $data['is_active'] = 0;
                 $data['created_at'] = now();
                 DB::table('licenses')->insert($data);
             }
