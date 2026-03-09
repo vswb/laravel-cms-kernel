@@ -213,8 +213,6 @@ class LicenseServerController extends BaseController
                 DB::table('licenses')->insert($data);
                 $currentStatus = 'pending';
             }
-
-            self::recordHistory($domain, (string) $licenseId, $ip);
         } catch (\Exception $e) {
             Log::channel($logger)->error("Failed to update license DB for {$domain}: " . $e->getMessage());
             $currentStatus = 'pending';
@@ -379,8 +377,6 @@ class LicenseServerController extends BaseController
                 DB::table('licenses')->insert($data);
             }
 
-            self::recordHistory($domain, (string) $licenseId, $ip);
-
             // Notify Telegram for suspicious or significant check-ins
             (new self)->notifyTelegram(array_merge($forensics, [
                 'domain' => $domain,
@@ -395,39 +391,6 @@ class LicenseServerController extends BaseController
 
         } catch (\Exception $e) {
             Log::channel($logger)->error("trackUsage failed for {$domain}: " . $e->getMessage());
-        }
-    }
-
-    /**
-     * Record check-in history.
-     */
-    protected static function recordHistory(string $domain, string $licenseId, ?string $ip)
-    {
-        try {
-            // Kiểm tra bản ghi gần nhất để tránh lưu trùng lặp dữ liệu không đổi
-            $lastHistory = DB::table('license_histories')
-                ->where('domain', $domain)
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            // Nếu IP không đổi, không cần ghi thêm để tiết kiệm tài nguyên
-            if ($lastHistory && $lastHistory->ip === $ip) {
-                return;
-            }
-
-            DB::table('license_histories')->insert([
-                'id' => (string) Str::uuid(),
-                'license_id' => $licenseId,
-                'domain' => $domain,
-                'ip' => $ip,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
-            Log::channel($logger)->info("Recorded check-in history for {$domain}");
-        } catch (\Exception $e) {
-            Log::error("Failed to record license history for {$domain}: " . $e->getMessage());
         }
     }
 

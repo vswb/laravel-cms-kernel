@@ -53,7 +53,7 @@ Route::group([
         return response()->json([
             'error' => false,
             'data' => null,
-            'message' => 'The system is already running the latest version. For further assistance, please contact us at toan@visualweber.com or call +84 943 999 819',
+            'message' => 'The system is already running the latest version. For further assistance, please contact us at contact@visualweber.com or call +84 943 999 819',
         ]);
     })->name('license.check-update');
 
@@ -65,7 +65,7 @@ Route::group([
         return response()->json([
             'error' => false,
             'data' => null,
-            'message' => 'The system is already running the latest version. For further assistance, please contact us at toan@visualweber.com or call +84 943 999 819',
+            'message' => 'The system is already running the latest version. For further assistance, please contact us at contact@visualweber.com or call +84 943 999 819',
         ]);
     })->name('license.check-update.get');
 
@@ -73,7 +73,7 @@ Route::group([
         return response()->json([
             'error' => false,
             'data' => null,
-            'message' => 'The system is already running the latest version. For further assistance, please contact us at toan@visualweber.com or call +84 943 999 819',
+            'message' => 'The system is already running the latest version. For further assistance, please contact us at contact@visualweber.com or call +84 943 999 819',
         ]);
     })->name('license.verify');
 
@@ -81,7 +81,7 @@ Route::group([
         return response()->json([
             'error' => false,
             'data' => null,
-            'message' => 'The system is already running the latest version. For further assistance, please contact us at toan@visualweber.com or call +84 943 999 819',
+            'message' => 'The system is already running the latest version. For further assistance, please contact us at contact@visualweber.com or call +84 943 999 819',
         ]);
     })->name('license.check');
 

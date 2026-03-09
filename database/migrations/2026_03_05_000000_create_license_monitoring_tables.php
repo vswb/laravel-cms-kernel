@@ -25,22 +25,6 @@ return new class extends Migration {
             });
         }
 
-        // 2. Create Child Table: license_histories
-        if (!Schema::hasTable('license_histories')) {
-            Schema::create('license_histories', function (Blueprint $table) {
-                $table->uuid('id')->primary();
-                $table->uuid('license_id')->index();
-                $table->string('domain', 150)->index();
-                $table->string('ip', 50)->nullable();
-                $table->timestamps();
-
-                // Foreign Key setup with Cascade Delete
-                $table->foreign('license_id')
-                    ->references('id')
-                    ->on('licenses')
-                    ->onDelete('cascade');
-            });
-        }
     }
 
     /**
@@ -48,7 +32,6 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('license_histories');
         Schema::dropIfExists('licenses');
     }
 };
