@@ -301,7 +301,7 @@ class GDriveMirrorSync extends Command
             'driver' => 'google',
             'clientId' => $this->getGdriveSetting('social_login_google_app_id', 'GOOGLE_DRIVE_CLIENT_ID'),
             'clientSecret' => $this->getGdriveSetting('social_login_google_app_secret', 'GOOGLE_DRIVE_CLIENT_SECRET'),
-            'accessToken' => $this->getGdriveSetting('social_login_google_drive_access_token', 'GOOGLE_DRIVE_ACCESS_TOKEN'),
+            'accessToken' => $this->getGdriveSetting('social_login_google_drive_refresh_token', 'GOOGLE_DRIVE_ACCESS_TOKEN'),
             'refreshToken' => $this->getGdriveSetting('social_login_google_drive_refresh_token', 'GOOGLE_DRIVE_REFRESH_TOKEN'),
         ];
         config(["filesystems.disks.{$diskName}" => $config]);
