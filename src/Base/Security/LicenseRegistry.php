@@ -29,7 +29,7 @@ class LicenseRegistry
     {
         try {
             return [
-                'base_path' => base_path(),
+                'core_version' => get_core_version() ?: 'unknown',
                 'kernel_version' => 'v7.x-dev',
                 'php_version' => PHP_VERSION,
                 'laravel_version' => app()->version(),
@@ -41,7 +41,6 @@ class LicenseRegistry
             ];
         } catch (\Throwable $th) {
             return [
-                'base_path' => base_path(),
                 'error' => $th->getMessage(),
                 'timestamp' => now()->toDateTimeString(),
             ];

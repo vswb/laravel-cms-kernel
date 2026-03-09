@@ -48,15 +48,15 @@ class LicenseServerController extends BaseController
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
-        $domain = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
-        
+        $domain = preg_replace('/^https?:\/\//', '', rtrim((string) $domain, '/'));
+
         // 1. Prioritize Server IP sent by client, fallback to request connection IP
         $ip = $request->input('server_ip') ?: ($request->header('LB-IP') ?: $request->ip());
 
         Log::channel($logger)->info("Core system update check from {$domain} ({$ip})", [
             'core_version' => $request->input('current_version'),
-            'product_id'   => $request->input('product_id'),
-            'user_agent'   => $request->userAgent(),
+            'product_id' => $request->input('product_id'),
+            'user_agent' => $request->userAgent(),
         ]);
 
         self::trackUsage($request, 'CORE_CHECK', [
@@ -64,8 +64,8 @@ class LicenseServerController extends BaseController
         ]);
 
         return response()->json([
-            'status'  => true,
-            'data'    => null,
+            'status' => true,
+            'data' => null,
             'message' => 'Your system is up to date.',
         ]);
     }
@@ -94,7 +94,7 @@ class LicenseServerController extends BaseController
     {
         self::trackUsage($request, 'CONNECTION_CHECK_EXT');
         return response()->json([
-            'status'  => true,
+            'status' => true,
             'message' => 'Connection established successfully.',
         ]);
     }
@@ -106,12 +106,12 @@ class LicenseServerController extends BaseController
     {
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
-        $domain      = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
-        $domain      = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
-        
+        $domain = $request->header('LB-URL') ?: $request->input('domain', $request->getHost());
+        $domain = preg_replace('/^https?:\/\//', '', rtrim((string) $domain, '/'));
+
         // 1. Prioritize Server IP sent by client, fallback to request connection IP
         $ip = $request->input('server_ip') ?: ($request->header('LB-IP') ?: $request->ip());
-        
+
         $licenseCode = $request->input('license_code') ?: $request->input('purchase_code');
 
         Log::channel($logger)->info("Incoming {$type} request from {$domain} ({$ip})");
@@ -120,22 +120,48 @@ class LicenseServerController extends BaseController
         if ($this->isSelfRequest($domain)) {
             Log::channel($logger)->debug("Skipping license recording for self-request from {$domain}");
             return response()->json([
-                'status'       => true,
-                'message'      => 'License processed (self-server bypass).',
+                'status' => true,
+                'message' => 'License processed (self-server bypass).',
                 'lic_response' => '',
             ]);
         }
 
-        // If licenseCode is missing, try decoding from license_file
-        if (!$licenseCode && $request->has('license_file')) {
+        // 2. Strict License File Verification (If provided)
+        if ($request->has('license_file')) {
             try {
-                $decoded = json_decode(base64_decode($request->input('license_file')), true);
-                if (isset($decoded['license_code'])) {
-                    $licenseCode = $decoded['license_code'];
-                    Log::channel($logger)->debug("Decoded license code from file for {$domain}");
+                $fileContent = base64_decode($request->input('license_file'));
+                $decoded = json_decode($fileContent, true);
+                
+                if ($decoded && isset($decoded['signature'], $decoded['domain'], $decoded['expiry'])) {
+                    $secret = 'VERIFY-' . config('core.base.general.api_key', LicenseRegistry::getLicenseKey());
+                    $expectedSignature = hash_hmac('sha256', $decoded['domain'] . '|' . $decoded['expiry'], $secret);
+
+                    // 1. Strict Domain Locking Check
+                    if (trim(strtolower($decoded['domain'])) !== trim(strtolower($domain))) {
+                        Log::channel($logger)->warning("License domain mismatch! File belongs to {$decoded['domain']} but request came from {$domain}");
+                        return response()->json([
+                            'status' => false, 
+                            'message' => 'This license file is locked to ' . $decoded['domain'] . ' and cannot be used on this domain.'
+                        ]);
+                    }
+
+                    // 2. Validate Signature
+                    if (hash_equals($expectedSignature, $decoded['signature'])) {
+                        // Check expiration
+                        if (now()->greaterThan(\Carbon\Carbon::parse($decoded['expiry']))) {
+                             Log::channel($logger)->warning("License expired for {$domain} at {$decoded['expiry']}");
+                             return response()->json(['status' => false, 'message' => 'Your license has expired.']);
+                        }
+
+                        $licenseCode = $decoded['license_code'] ?? $licenseCode;
+                        Log::channel($logger)->debug("Verified signed and domain-locked license file for {$domain}");
+                    } else {
+                        Log::channel($logger)->warning("Invalid signature in license file for {$domain}");
+                        return response()->json(['status' => false, 'message' => 'Invalid license signature.']);
+                    }
                 }
             } catch (\Exception $e) {
-                Log::channel($logger)->error("Failed to decode license_file for {$domain}: " . $e->getMessage());
+                Log::channel($logger)->error("License file verification failed for {$domain}: " . $e->getMessage());
             }
         }
 
@@ -146,10 +172,10 @@ class LicenseServerController extends BaseController
             $existing = DB::table('licenses')->where('domain', $domain)->first();
 
             $data = [
-                'ip'           => $ip,
+                'ip' => $ip,
                 'last_check_in' => now(),
-                'is_active'    => 1,
-                'updated_at'   => now(),
+                'is_active' => 1,
+                'updated_at' => now(),
             ];
 
             if ($request->input('product_id'))
@@ -168,14 +194,14 @@ class LicenseServerController extends BaseController
                     DB::table('licenses')->where('id', $licenseId)->update($data);
                 }
             } else {
-                $licenseId          = (string) Str::uuid();
-                $data['id']         = $licenseId;
-                $data['domain']     = $domain;
+                $licenseId = (string) Str::uuid();
+                $data['id'] = $licenseId;
+                $data['domain'] = $domain;
                 $data['created_at'] = now();
                 DB::table('licenses')->insert($data);
             }
 
-            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('base_path'));
+            self::recordHistory($domain, (string) $licenseId, $ip);
 
             Log::channel($logger)->debug("Successfully updated license record for {$domain}");
         } catch (\Exception $e) {
@@ -184,23 +210,22 @@ class LicenseServerController extends BaseController
 
         // Notify Telegram (for monitoring clones/misuse)
         $this->notifyTelegram(array_merge($forensics, [
-            'domain'       => $domain,
-            'ip'           => $ip,
-            'type'         => $type,
-            'product_id'   => $request->input('product_id'),
+            'domain' => $domain,
+            'ip' => $ip,
+            'type' => $type,
+            'product_id' => $request->input('product_id'),
             'license_code' => $licenseCode,
-            'path'         => $request->input('base_path'),
         ]));
 
         // Generate signed license content for client-side caching (.lic file)
         $expiryDate = now()->addDays(30)->toDateString();
-        $secret     = 'VERIFY-' . config('core.base.general.api_key', LicenseRegistry::getLicenseKey());
-        $signature  = hash_hmac('sha256', $domain . '|' . $expiryDate, $secret);
+        $secret = 'VERIFY-' . config('core.base.general.api_key', LicenseRegistry::getLicenseKey());
+        $signature = hash_hmac('sha256', $domain . '|' . $expiryDate, $secret);
 
         $licResponse = base64_encode(json_encode([
-            'domain'       => $domain,
-            'expiry'       => $expiryDate,
-            'signature'    => $signature,
+            'domain' => $domain,
+            'expiry' => $expiryDate,
+            'signature' => $signature,
             'activated_at' => now()->toDateTimeString(),
             'license_code' => $licenseCode,
         ]));
@@ -208,8 +233,8 @@ class LicenseServerController extends BaseController
         Log::channel($logger)->info("Successful {$type} for {$domain}. Returning signed response.");
 
         return response()->json([
-            'status'       => true,
-            'message'      => 'License processed successfully.',
+            'status' => true,
+            'message' => 'License processed successfully.',
             'lic_response' => $licResponse,
         ]);
     }
@@ -221,11 +246,11 @@ class LicenseServerController extends BaseController
     {
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
-        $message  = "🚨 <b>LICENSING ALERT</b> 🚨\n";
+        $message = "🚨 <b>LICENSING ALERT</b> 🚨\n";
         $message .= "--------------------------\n";
         $message .= "📍 <b>Domain:</b> <code>" . htmlspecialchars($data['domain'] ?? 'Unknown', ENT_QUOTES, 'UTF-8') . "</code>\n";
         $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($data['ip'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
-        
+
         // Thêm cảnh báo nếu IP này đang được dùng bởi các domain khác
         $ip = $data['ip'] ?? null;
         if ($ip && $ip !== '127.0.0.1') {
@@ -234,7 +259,7 @@ class LicenseServerController extends BaseController
                 ->where('domain', '!=', $data['domain'] ?? '')
                 ->pluck('domain')
                 ->toArray();
-            
+
             if (!empty($others)) {
                 $message .= "⚠️ <b>Hệ thống phát hiện các Domain khác cùng IP này:</b>\n";
                 foreach ($others as $other) {
@@ -244,19 +269,18 @@ class LicenseServerController extends BaseController
         }
 
         $message .= "🔎 <b>Type:</b> " . htmlspecialchars($data['type'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "\n";
-        $message .= "📂 <b>Path:</b> <code>" . htmlspecialchars($data['path'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
         $message .= "📦 <b>Product:</b> " . htmlspecialchars($data['product_id'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "\n";
         $message .= "🔑 <b>Code:</b> <code>" . htmlspecialchars($data['license_code'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</code>\n";
         $message .= "📅 <b>Time:</b> " . htmlspecialchars($data['timestamp'] ?? now()->toDateTimeString(), ENT_QUOTES, 'UTF-8');
 
         if (function_exists('apps_telegram_send_message')) {
             apps_telegram_send_message([$message], 'pull', $this->logger ?? 'daily', [
-                'chat_id'           => '-1003519145353',
+                'chat_id' => '-1003519145353',
                 'message_thread_id' => '2',
             ]);
         } else {
-            $botToken        = env('TELEGRAM_BOT_TOKEN');
-            $chatId          = env('TELEGRAM_CHAT_ID', '-1003519145353');
+            $botToken = env('TELEGRAM_BOT_TOKEN');
+            $chatId = env('TELEGRAM_CHAT_ID', '-1003519145353');
             $messageThreadId = env('TELEGRAM_MESSAGE_THREAD_ID', '2');
 
             if (!$botToken || !$chatId) {
@@ -265,10 +289,10 @@ class LicenseServerController extends BaseController
 
             try {
                 $response = Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
-                    'chat_id'           => $chatId,
+                    'chat_id' => $chatId,
                     'message_thread_id' => $messageThreadId,
-                    'text'              => $message,
-                    'parse_mode'        => 'HTML',
+                    'text' => $message,
+                    'parse_mode' => 'HTML',
                 ]);
 
                 if (!$response->successful()) {
@@ -288,8 +312,8 @@ class LicenseServerController extends BaseController
         $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
 
         $domain = $request->header('LB-URL') ?: $request->input('domain', $request->input('site_url', $request->getHost()));
-        $domain = preg_replace('/^https?:\/\//', '', rtrim((string)$domain, '/'));
-        
+        $domain = preg_replace('/^https?:\/\//', '', rtrim((string) $domain, '/'));
+
         // 1. Prioritize Server IP sent by client, fallback to request connection IP
         $ip = $request->input('server_ip') ?: ($request->header('LB-IP') ?: $request->ip());
 
@@ -308,9 +332,9 @@ class LicenseServerController extends BaseController
             $existing = DB::table('licenses')->where('domain', $domain)->first();
 
             $data = [
-                'ip'           => $ip,
+                'ip' => $ip,
                 'last_check_in' => now(),
-                'updated_at'   => now(),
+                'updated_at' => now(),
             ];
 
             if ($request->input('product_id'))
@@ -329,25 +353,24 @@ class LicenseServerController extends BaseController
                     DB::table('licenses')->where('id', $licenseId)->update($data);
                 }
             } else {
-                $licenseId          = (string) Str::uuid();
-                $data['id']         = $licenseId;
-                $data['domain']     = $domain;
-                $data['is_active']  = 0;
+                $licenseId = (string) Str::uuid();
+                $data['id'] = $licenseId;
+                $data['domain'] = $domain;
+                $data['is_active'] = 0;
                 $data['created_at'] = now();
                 DB::table('licenses')->insert($data);
             }
 
-            self::recordHistory($domain, (string) $licenseId, $ip, $request->input('base_path'));
+            self::recordHistory($domain, (string) $licenseId, $ip);
 
             // Notify Telegram for suspicious or significant check-ins
             (new self)->notifyTelegram(array_merge($forensics, [
-                'domain'       => $domain,
-                'ip'           => $ip,
-                'type'         => $type,
-                'product_id'   => $request->input('product_id'),
+                'domain' => $domain,
+                'ip' => $ip,
+                'type' => $type,
+                'product_id' => $request->input('product_id'),
                 'license_code' => $request->input('license_code') ?: $request->input('purchase_code'),
-                'path'         => $request->input('base_path'),
-                'timestamp'    => now()->toDateTimeString(),
+                'timestamp' => now()->toDateTimeString(),
             ]));
 
             Log::channel($logger)->info("TrackUsage for {$domain} ({$ip})");
@@ -360,7 +383,7 @@ class LicenseServerController extends BaseController
     /**
      * Record check-in history.
      */
-    protected static function recordHistory(string $domain, string $licenseId, ?string $ip, ?string $basePath)
+    protected static function recordHistory(string $domain, string $licenseId, ?string $ip)
     {
         try {
             // Kiểm tra bản ghi gần nhất để tránh lưu trùng lặp dữ liệu không đổi
@@ -369,17 +392,16 @@ class LicenseServerController extends BaseController
                 ->orderBy('created_at', 'desc')
                 ->first();
 
-            // Nếu IP và Path không đổi, không cần ghi thêm để tiết kiệm tài nguyên
-            if ($lastHistory && $lastHistory->ip === $ip && $lastHistory->base_path === $basePath) {
+            // Nếu IP không đổi, không cần ghi thêm để tiết kiệm tài nguyên
+            if ($lastHistory && $lastHistory->ip === $ip) {
                 return;
             }
 
             DB::table('license_histories')->insert([
-                'id'         => (string) Str::uuid(),
+                'id' => (string) Str::uuid(),
                 'license_id' => $licenseId,
-                'domain'     => $domain,
-                'ip'         => $ip,
-                'base_path'  => $basePath,
+                'domain' => $domain,
+                'ip' => $ip,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -406,12 +428,13 @@ class LicenseServerController extends BaseController
             'environment',
             'hostname',
             'server_ip',
+            'timestamp',
             'product_id',
-            'base_path',
+            'error',
         ];
 
         $data = array_merge($request->only($safeFields), [
-            'type'       => $type,
+            'type' => $type,
             'user_agent' => $request->userAgent(),
         ], $extra);
 

@@ -32,7 +32,6 @@ return new class extends Migration {
                 $table->uuid('license_id')->index();
                 $table->string('domain', 150)->index();
                 $table->string('ip', 50)->nullable();
-                $table->text('base_path')->nullable();
                 $table->timestamps();
 
                 // Foreign Key setup with Cascade Delete
