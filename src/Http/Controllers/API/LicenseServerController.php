@@ -186,11 +186,11 @@ class LicenseServerController extends BaseController
         // Manage license records in DB
         try {
             $existing = DB::table('licenses')->where('domain', $domain)->first();
+            $currentStatus = $existing ? $existing->status : 'pending';
 
             $data = [
                 'ip' => $ip,
                 'last_check_in' => now(),
-                'status' => 'pending', // Requires audit
                 'updated_at' => now(),
             ];
 
@@ -202,55 +202,46 @@ class LicenseServerController extends BaseController
                 $data['client_name'] = $request->input('client_name');
 
             if ($existing) {
-                $licenseId = $existing->id ?: (string) Str::uuid();
-                if (empty($existing->id)) {
-                    $data['id'] = $licenseId;
-                    DB::table('licenses')->where('domain', $domain)->update($data);
-                } else {
-                    DB::table('licenses')->where('id', $licenseId)->update($data);
-                }
+                $licenseId = $existing->id;
+                DB::table('licenses')->where('id', $licenseId)->update($data);
             } else {
                 $licenseId = (string) Str::uuid();
                 $data['id'] = $licenseId;
                 $data['domain'] = $domain;
+                $data['status'] = 'pending'; // Always pending for new sites
                 $data['created_at'] = now();
                 DB::table('licenses')->insert($data);
+                $currentStatus = 'pending';
             }
 
             self::recordHistory($domain, (string) $licenseId, $ip);
-
-            Log::channel($logger)->debug("Successfully updated license record for {$domain}");
         } catch (\Exception $e) {
             Log::channel($logger)->error("Failed to update license DB for {$domain}: " . $e->getMessage());
+            $currentStatus = 'pending';
         }
 
-        // Notify Telegram (for monitoring clones/misuse)
-        $this->notifyTelegram(array_merge($forensics, [
-            'domain' => $domain,
-            'ip' => $ip,
-            'type' => $type,
-            'product_id' => $request->input('product_id'),
-            'license_code' => $licenseCode,
-        ]));
+        // GENERATION LOGIC: Only issue certificates to VERIFIED domains
+        $licResponse = '';
+        if ($currentStatus === 'verified') {
+            $expiryDate = now()->addDays(365)->toDateString();
+            $secret = 'VERIFY-' . config('core.base.general.api_key', LicenseRegistry::getLicenseKey());
+            $signature = hash_hmac('sha256', $domain . '|' . $expiryDate, $secret);
 
-        // Generate signed license content for client-side caching (.lic file)
-        $expiryDate = now()->addDays(30)->toDateString();
-        $secret = 'VERIFY-' . config('core.base.general.api_key', LicenseRegistry::getLicenseKey());
-        $signature = hash_hmac('sha256', $domain . '|' . $expiryDate, $secret);
-
-        $licResponse = base64_encode(json_encode([
-            'domain' => $domain,
-            'expiry' => $expiryDate,
-            'signature' => $signature,
-            'activated_at' => now()->toDateTimeString(),
-            'license_code' => $licenseCode,
-        ]));
-
-        Log::channel($logger)->info("Successful {$type} for {$domain}. Returning signed response.");
+            $licResponse = base64_encode(json_encode([
+                'domain' => $domain,
+                'expiry' => $expiryDate,
+                'signature' => $signature,
+                'activated_at' => now()->toDateTimeString(),
+                'license_code' => $licenseCode ?: 'AUTOBOT-REGISTERED',
+            ]));
+            Log::channel($logger)->info("Issuing/Renewing signed certificate for verified domain: {$domain}");
+        } else {
+            Log::channel($logger)->info("Skipping certificate issuance for unverified domain: {$domain} (Status: {$currentStatus})");
+        }
 
         return response()->json([
             'status' => true,
-            'message' => 'License processed successfully.',
+            'message' => 'Congratulations! Your core system is running the latest official version. Your platform is fully optimized for maximum performance and protected with the latest security enhancements.',
             'lic_response' => $licResponse,
         ]);
     }
