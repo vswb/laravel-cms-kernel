@@ -229,15 +229,15 @@ class GDriveMirrorSync extends Command
                         }
 
                         // Download/Export with Retry Logic
-                        $success = $this->withRetry(function() use ($googleDisk, $relativePath, $targetLocalPath, $exportSpec, $meta) {
+                        $success = $this->withRetry(function() use ($googleDisk, $relativePath, $targetLocalPath, $exportSpec, $fileMeta) {
                             File::ensureDirectoryExists(dirname($targetLocalPath));
                             
                             if ($exportSpec) {
                                 // Export Google Native File
                                 /** @var mixed $googleDisk */
                                 $service = $googleDisk->getAdapter()->getService();
-                                $this->line("\n   ✨ Exporting Google Native to .{$exportSpec['ext']}");
-                                $response = $service->files->export($meta['id'], $exportSpec['mime'], ['alt' => 'media']);
+                                $this->line("\n   ✨ Exporting Google Native: " . basename($targetLocalPath));
+                                $response = $service->files->export($fileMeta->getId(), $exportSpec['mime'], ['alt' => 'media']);
                                 File::put($targetLocalPath, $response->getBody()->getContents());
                             } else {
                                 // Stream Download for regular files (Memory Efficient)
@@ -248,17 +248,18 @@ class GDriveMirrorSync extends Command
                                     fclose($writeStream);
                                     if (is_resource($readStream)) fclose($readStream);
                                 } else {
-                                    throw new \Exception("Could not open read stream for {$relativePath}");
+                                    throw new \Exception("Could not open read stream");
                                 }
                             }
                             return true;
-                        });
+                        }, $relativePath);
 
                         if ($success) {
                             @touch($targetLocalPath, $remoteTimestamp);
                             $stats['updated']++;
                         } else {
                             $stats['errors']++;
+                            $this->error("\n   ❌ Failed to sync: {$relativePath}");
                         }
                     }
                     $bar->advance();
@@ -283,7 +284,7 @@ class GDriveMirrorSync extends Command
     /**
      * Wrapper for retry logic
      */
-    protected function withRetry(callable $callback)
+    protected function withRetry(callable $callback, $path)
     {
         $maxRetries = (int) $this->option('retry');
         $attempts = 0;
@@ -293,10 +294,21 @@ class GDriveMirrorSync extends Command
                 return $callback();
             } catch (\Throwable $e) {
                 $attempts++;
-                if ($attempts > $maxRetries) {
+                $msg = $e->getMessage();
+                
+                // Specific check for Google Export Limit
+                if (str_contains($msg, 'exportSizeLimitExceeded')) {
+                    $this->warn("\n      ⚠️  Google Export Limit Exceeded (File too large). Skipping.");
+                    Log::channel($this->log_channel)->error("GDrive Sync: File too large to export", ['path' => $path]);
                     return false;
                 }
-                Log::channel($this->log_channel)->warning("GDrive Sync Attempt {$attempts} failed. Retrying...", ['msg' => $e->getMessage()]);
+
+                if ($attempts > $maxRetries) {
+                    Log::channel($this->log_channel)->error("GDrive Sync: Final failure after {$maxRetries} retries", ['path' => $path, 'error' => $msg]);
+                    return false;
+                }
+                
+                $this->comment("      ⏳ Attempt {$attempts} failed, retrying...");
                 sleep(1); 
             }
         }
