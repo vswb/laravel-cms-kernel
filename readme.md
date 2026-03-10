@@ -26,7 +26,7 @@ A premium kernel extension for Laravel CMS providing core system functionality, 
 *   **Google Integration**: Full support for Google Drive & Spreadsheet API.
 *   **Data Macros**: Advanced query macros and benchmarking tools.
 *   **Utilities**: Province detection, phone extraction, and form field helpers.
-*   **Automation**: Git commit hook setup and member birthday notifications.
+*   **Automation**: System utility tasks and cloud synchronization.
 
 ---
 
@@ -60,15 +60,7 @@ For detailed guides, please refer to the following:
 php artisan gdrive:mirror:sync [PATH_OR_ID] --delete --retry=5
 ```
 
-### Member Birthday Notifications
-```bash
-php artisan cms:member:birthday-notification
-```
-
-### Git Commit Hooks
-```bash
-php artisan git:install-commit-hook
-```
+---
 
 ---
 
