@@ -47,7 +47,7 @@ class GDriveMirrorSync extends Command
      */
     protected $signature = 'gdrive:mirror:sync
         {folders* : specific folders on Google Drive to mirror, e.g., 2022 2023}
-        {--force : Force download all files even if they haven\'t changed}
+        {--force : Force re-download/overwrite all files from Drive to Local (SAFE: does NOT delete files)}
         {--retry=3 : Number of retries for each file operation on network failure}
         {--path= : Custom local storage path (defaults to storage/app/google_drive_mirror)}';
 
