@@ -48,8 +48,8 @@ class GDriveMirrorSync extends Command
     protected $signature = 'gdrive:mirror:sync
         {folders* : specific folders on Google Drive to mirror, e.g., 2022 2023}
         {--force : Force download all files even if they haven\'t changed}
-        {--delete : Delete local files/folders that no longer exist on Google Drive}
-        {--retry=3 : Number of retries for each file operation on network failure}';
+        {--retry=3 : Number of retries for each file operation on network failure}
+        {--path= : Custom local storage path (defaults to storage/app/google_drive_mirror)}';
 
     /**
      * The console command description.
@@ -101,11 +101,12 @@ class GDriveMirrorSync extends Command
             // 2. Prepare Dynamic Disk Configuration
             $this->initGoogleDisk(null, 'google_drive_mirror');
 
-            $baseLocalPath = storage_path('app/google_drive_mirror');
+            $rawPath = $this->option('path') ?: storage_path('app/google_drive_mirror');
+            $baseLocalPath = realpath($rawPath) ?: $rawPath;
             $googleDisk = Storage::disk("google_drive_mirror");
             $targetIdentifiers = (array) $this->argument('folders');
 
-            $stats = ['processed' => 0, 'updated' => 0, 'skipped' => 0, 'deleted' => 0, 'errors' => 0, 'folders' => 0];
+            $stats = ['processed' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => 0, 'folders' => 0];
 
             foreach ($targetIdentifiers as $identifier) {
                 $localPrefix = '';
@@ -202,6 +203,18 @@ class GDriveMirrorSync extends Command
                         // Decide target path (Normal vs Export)
                         $targetLocalPath = $absoluteLocalPath;
                         $exportSpec = $this->exportMap[$mimeType] ?? null;
+
+                        // Deep Check for Google Native Files if MimeType is missing or generic
+                        if (!$exportSpec && $isId) {
+                            try {
+                                /** @var mixed $googleDisk */
+                                $service = $googleDisk->getAdapter()->getService();
+                                $fileMeta = $service->files->get($meta['id'], ['fields' => 'id, name, mimeType']);
+                                $mimeType = $fileMeta->getMimeType();
+                                $exportSpec = $this->exportMap[$mimeType] ?? null;
+                            } catch (\Throwable $e) {}
+                        }
+
                         if ($exportSpec) {
                             $targetLocalPath = $absoluteLocalPath . '.' . $exportSpec['ext'];
                         }
@@ -223,6 +236,7 @@ class GDriveMirrorSync extends Command
                                 // Export Google Native File
                                 /** @var mixed $googleDisk */
                                 $service = $googleDisk->getAdapter()->getService();
+                                $this->line("\n   ✨ Exporting Google Native to .{$exportSpec['ext']}");
                                 $response = $service->files->export($meta['id'], $exportSpec['mime'], ['alt' => 'media']);
                                 File::put($targetLocalPath, $response->getBody()->getContents());
                             } else {
@@ -252,10 +266,7 @@ class GDriveMirrorSync extends Command
                 $bar->finish();
                 $this->info("");
 
-                // CLEANUP LOGIC
-                if ($this->option('delete')) {
-                    $this->cleanupOrphans($baseLocalPath, $exploringPath, $remoteItems, $stats, $localPrefix);
-                }
+                // Cleanup Logic removed for safety
             }
 
             $this->finalReport($stats, $baseLocalPath);
@@ -312,43 +323,8 @@ class GDriveMirrorSync extends Command
     }
 
     /**
-     * Delete files locally that are no longer on Drive
+     * Display final report
      */
-    protected function cleanupOrphans($basePath, $baseFolder, $remoteItems, &$stats, $localPrefix = '')
-    {
-        $this->info("Cleaning up local orphans for '{$baseFolder}'...");
-        $localFolder = $localPrefix ? "{$basePath}/{$localPrefix}" : "{$basePath}/{$baseFolder}";
-        if (!File::isDirectory($localFolder)) return;
-
-        $localFiles = File::allFiles($localFolder);
-        foreach ($localFiles as $file) {
-            $fullPath = $file->getRealPath();
-            $relativePath = Str::after($fullPath, $basePath . '/');
-
-            // Handle local prefix when matching against remote original path
-            $checkPath = $relativePath;
-            if ($localPrefix && Str::startsWith($relativePath, $localPrefix . '/')) {
-                $checkPath = Str::after($relativePath, $localPrefix . '/');
-            }
-
-            // Handle Office extensions
-            foreach ($this->exportMap as $mime => $spec) {
-                if (Str::endsWith($checkPath, '.' . $spec['ext'])) {
-                    $potentialOriginal = Str::beforeLast($checkPath, '.' . $spec['ext']);
-                    if (isset($remoteItems[$potentialOriginal])) {
-                        $checkPath = $potentialOriginal;
-                        break;
-                    }
-                }
-            }
-
-            if (!isset($remoteItems[$checkPath])) {
-                File::delete($fullPath);
-                $stats['deleted']++;
-                $this->line("🗑️ Deleted local orphan: {$relativePath}");
-            }
-        }
-    }
 
     protected function finalReport($stats, $baseLocalPath)
     {
@@ -358,9 +334,6 @@ class GDriveMirrorSync extends Command
         $this->comment("📂 Folders Created:  {$stats['folders']}");
         $this->comment("✅ Files Updated:    {$stats['updated']}");
         $this->comment("⏭️ Files Skipped:    {$stats['skipped']}");
-        if ($this->option('delete')) {
-            $this->comment("🗑️ Files Deleted:    {$stats['deleted']}");
-        }
         $this->comment("❌ Errors encountered: {$stats['errors']}");
         $this->info(str_repeat("=", 50));
         $this->info("Storage: {$baseLocalPath}");
