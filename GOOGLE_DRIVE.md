@@ -106,15 +106,48 @@ Ensure `config/filesystems.php` includes the `google` disk:
 ## 🛠️ Usage
 
 ### Artisan Command (Mirror Sync)
-The kernel provides a command to mirror local folders to Google Drive:
+The kernel provides a high-performance command to mirror Google Drive folders to your local machine (or external drives like OneDrive/SSD).
 
 ```bash
-# Using a relative/absolute path
-php artisan gdrive:mirror:sync "path/to/local/folder" --delete --retry=5
+# Basic usage with Folder ID
+php artisan gdrive:mirror:sync "Google_Folder_ID"
 
-# Using a specific Google Drive Folder ID
-php artisan gdrive:mirror:sync "13xTtnd1T2qyUQ0p6quagAlzpdd9Hp6-l" --delete
+# Sync to a custom path (e.g., OneDrive or External SSD)
+php artisan gdrive:mirror:sync "Google_Folder_ID" --path="/Users/eugene/Library/CloudStorage/OneDrive/Marketing"
+
+# Force re-download everything (useful to fix corrupted or mismatched files)
+php artisan gdrive:mirror:sync "Google_Folder_ID" --force
+
+# Robust sync with high retries for unstable networks
+php artisan gdrive:mirror:sync "Google_Folder_ID" --retry=10
 ```
+
+#### 🛠️ Available Options
+
+| Option | Description |
+| :--- | :--- |
+| `{folders*}` | (Required) One or more Google Drive Folder IDs or Names to sync. |
+| `--path=` | Custom local storage path (e.g., External Drive/OneDrive). |
+| `--force` | **SAFE:** Forces re-download and overwrites existing local files. It does **NOT** delete anything. |
+| `--retry=3` | Number of retries for each file operation on network/API failure. |
+| `--delete` | **⚠️ DANGEROUS:** (Disabled in latest version) Previously used to delete local files not on Drive. |
+
+---
+
+## ⚡ Performance & Reliability
+
+### Delta Sync (Incremental)
+By default (without `--force`), the script performs a **Delta Sync**:
+1. It checks the `lastModified` timestamp and `Size` of the local file.
+2. If they match the Google Drive version exactly, it **Skips** the file.
+3. This is extremely fast for large libraries (thousands of files) and resumes after a network drop.
+
+### Google Native Export
+Google Docs/Sheets/Slides are automatically converted to Office formats:
+- **Google Sheets** $\rightarrow$ `.xlsx`
+- **Google Docs** $\rightarrow$ `.docx`
+- **Google Slides** $\rightarrow$ `.pptx`
+- **Note:** Files exceeding Google's export limit (e.g., Sheets > 100MB) will be skipped with an error log.
 
 ### Programmatic Usage
 ```php
@@ -131,5 +164,6 @@ $files = Storage::cloud()->listContents('/', false);
 
 ## 💡 Pro Tips
 
-- **Multiple Accounts**: You can define multiple disks (e.g., `google_main`, `google_backup`) in `config/filesystems.php` with different `.env` keys.
-- **Security**: Never commit your `.env` file or actual credentials to version control.
+- **OneDrive / External Drives**: This tool is ideal for bridging Google Drive to OneDrive or External HDD. Always use double quotes for paths with spaces: `--path="/Volumes/DATA/My Folder"`.
+- **Large Libraries**: For syncing >10,000 files, run the command without `--force` to leverage incremental skipping.
+- **Network Drops**: If your internet disconnects, simply re-run the command. It will quickly skip finished files and resume exactly where it left off.
