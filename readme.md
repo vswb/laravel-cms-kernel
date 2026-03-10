@@ -57,7 +57,7 @@ For detailed guides, please refer to the following:
 
 ### Google Drive Sync
 ```bash
-php artisan gdrive:mirror:sync [PATH_OR_ID] --delete --retry=5
+php artisan gdrive:mirror:sync [PATH_OR_ID] --retry=5
 ```
 
 ---

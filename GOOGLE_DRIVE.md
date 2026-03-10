@@ -130,7 +130,6 @@ php artisan gdrive:mirror:sync "Google_Folder_ID" --retry=10
 | `--path=` | Custom local storage path (e.g., External Drive/OneDrive). |
 | `--force` | **SAFE:** Forces re-download and overwrites existing local files. It does **NOT** delete anything. |
 | `--retry=3` | Number of retries for each file operation on network/API failure. |
-| `--delete` | **⚠️ DANGEROUS:** (Disabled in latest version) Previously used to delete local files not on Drive. |
 
 ---
 
