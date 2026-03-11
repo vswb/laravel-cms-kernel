@@ -57,6 +57,7 @@ class GDriveMirrorSync extends Command
     protected $description = 'Mirror GDrive to Local (Google Docs to MS Office) with Delta Sync, Streaming, and Retries.';
 
     protected $log_channel = 'daily';
+    protected $lastError = null;
 
     /**
      * Google Native MimeTypes to Microsoft Office (OpenXML) Formats
@@ -106,7 +107,7 @@ class GDriveMirrorSync extends Command
             $googleDisk = Storage::disk("google_drive_mirror");
             $targetIdentifiers = (array) $this->argument('folders');
 
-            $stats = ['processed' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => 0, 'folders' => 0];
+            $stats = ['processed' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => 0, 'folders' => 0, 'failed_files' => []];
 
             foreach ($targetIdentifiers as $identifier) {
                 $localPrefix = '';
@@ -259,7 +260,14 @@ class GDriveMirrorSync extends Command
                             $stats['updated']++;
                         } else {
                             $stats['errors']++;
-                            $this->error("\n   ❌ Failed to sync: {$relativePath}");
+                            $reason = $this->lastError ?? 'Unknown Error';
+                            $fileId = is_array($meta) ? ($meta['id'] ?? 'N/A') : (method_exists($meta, 'getId') ? $meta->getId() : 'N/A');
+                            $stats['failed_files'][] = [
+                                'name' => $relativePath,
+                                'id' => $fileId,
+                                'reason' => $reason
+                            ];
+                            $this->error("\n   ❌ Failed to sync: {$relativePath} | Reason: {$reason}");
                         }
                     }
                     $bar->advance();
@@ -295,6 +303,7 @@ class GDriveMirrorSync extends Command
             } catch (\Throwable $e) {
                 $attempts++;
                 $msg = $e->getMessage();
+                $this->lastError = $msg;
                 
                 // Specific check for Google Export Limit
                 if (str_contains($msg, 'exportSizeLimitExceeded')) {
@@ -347,7 +356,18 @@ class GDriveMirrorSync extends Command
         $this->comment("✅ Files Updated:    {$stats['updated']}");
         $this->comment("⏭️ Files Skipped:    {$stats['skipped']}");
         $this->comment("❌ Errors encountered: {$stats['errors']}");
-        $this->info(str_repeat("=", 50));
+        
+        if (!empty($stats['failed_files'])) {
+            $this->error("\n🔴 LIST OF FAILED FILES (FOR MANUAL SYNC)");
+            foreach ($stats['failed_files'] as $index => $file) {
+                $num = $index + 1;
+                $this->line("{$num}. {$file['name']}");
+                $this->line("   ↳ ID: {$file['id']}");
+                $this->line("   ↳ Reason: {$file['reason']}");
+            }
+        }
+
+        $this->info("\n" . str_repeat("=", 50));
         $this->info("Storage: {$baseLocalPath}");
     }
 

@@ -368,7 +368,6 @@ class LicenseServerController extends BaseController
             $data = [
                 'ip' => $ip,
                 'last_check_in' => now(),
-                'status' => 'tracked', // Just monitoring
                 'updated_at' => now(),
             ];
 
@@ -391,19 +390,37 @@ class LicenseServerController extends BaseController
                 $licenseId = (string) Str::uuid();
                 $data['id'] = $licenseId;
                 $data['domain'] = $domain;
+                $data['status'] = 'tracked'; // Set status for new domains
                 $data['created_at'] = now();
                 DB::table('licenses')->insert($data);
             }
 
-            // Notify Telegram for suspicious or significant check-ins
-            (new self)->notifyTelegram(array_merge($forensics, [
-                'domain' => $domain,
-                'ip' => $ip,
-                'type' => $type,
-                'product_id' => $request->input('product_id'),
-                'license_code' => $request->input('license_code') ?: $request->input('purchase_code'),
-                'timestamp' => now()->toDateTimeString(),
-            ]));
+            // Noise Reduction: Determine if we should notify Telegram
+            $isRoutine = in_array($type, ['CONNECTION_CHECK', 'CONNECTION_CHECK_EXT', 'CORE_CHECK', 'CHECK_UPDATE']);
+            $isKnown = $existing && in_array($existing->status, ['verified', 'tracked']);
+            $ipChanged = $existing && ($existing->ip !== $ip);
+            
+            $shouldNotify = true;
+            if ($isKnown && $isRoutine) {
+                $lastNotifyTime = $existing->last_check_in ? \Illuminate\Support\Carbon::parse($existing->last_check_in) : null;
+                $isRecent = $lastNotifyTime && $lastNotifyTime->diffInHours(now()) < 24;
+                
+                if (!$ipChanged && $isRecent) {
+                    $shouldNotify = false;
+                }
+            }
+
+            // Notify Telegram if criteria met
+            if ($shouldNotify) {
+                (new self)->notifyTelegram(array_merge($forensics, [
+                    'domain' => $domain,
+                    'ip' => $ip,
+                    'type' => $type,
+                    'product_id' => $request->input('product_id'),
+                    'license_code' => $request->input('license_code') ?: $request->input('purchase_code'),
+                    'timestamp' => now()->toDateTimeString(),
+                ]));
+            }
 
             Log::channel($logger)->info("TrackUsage for {$domain} ({$ip})");
 
