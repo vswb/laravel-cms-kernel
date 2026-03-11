@@ -405,8 +405,16 @@ class LicenseServerController extends BaseController
                 $lastNotifyTime = $existing->last_check_in ? \Illuminate\Support\Carbon::parse($existing->last_check_in) : null;
                 $isRecent = $lastNotifyTime && $lastNotifyTime->diffInHours(now()) < 24;
                 
-                if (!$ipChanged && $isRecent) {
-                    $shouldNotify = false;
+                // If it's a routine check for an already known domain:
+                // - If status is 'verified', we alert on IP change immediately.
+                // - If status is 'tracked', we only alert if it's NOT recent (reduce noise for clusters).
+                if ($isRecent) {
+                    if ($existing->status === 'verified') {
+                        if (!$ipChanged) $shouldNotify = false;
+                    } else {
+                        // For 'tracked' sites, don't spam on IP rotation within 24h
+                        $shouldNotify = false;
+                    }
                 }
             }
 
