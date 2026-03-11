@@ -356,9 +356,24 @@ class GDriveMirrorSync extends Command
         $this->comment("✅ Files Updated:    {$stats['updated']}");
         $this->comment("⏭️ Files Skipped:    {$stats['skipped']}");
         $this->comment("❌ Errors encountered: {$stats['errors']}");
+
+        // Log Summary
+        Log::channel($this->log_channel)->info("GDrive Mirror Sync COMPLETED", [
+            'folders' => $stats['folders'],
+            'updated' => $stats['updated'],
+            'skipped' => $stats['skipped'],
+            'errors'  => $stats['errors'],
+            'path'    => $baseLocalPath
+        ]);
         
         if (!empty($stats['failed_files'])) {
             $this->error("\n🔴 LIST OF FAILED FILES (FOR MANUAL SYNC)");
+            
+            // Log full error list for persistence
+            Log::channel($this->log_channel)->error("GDrive Sync: List of failed files", [
+                'failed_files' => $stats['failed_files']
+            ]);
+
             foreach ($stats['failed_files'] as $index => $file) {
                 $num = $index + 1;
                 $this->line("{$num}. {$file['name']}");
