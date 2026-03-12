@@ -1,15 +1,4 @@
 <?php
-/**
- * (c) Copyright 2026 VISUAL WEBER COMPANY LIMITED. All rights reserved.
- * Distributed by: VISUAL WEBER CO., LTD.
- * * [PRODUCT INFORMATION]
- * This software is a proprietary product developed by Visual Weber.
- * All rights to the software and its components are reserved under 
- * Intellectual Property laws.
- * * [TERMS OF USE]
- * Usage is permitted strictly according to the License Agreement 
- * between Visual Weber and the Client.
- */
 namespace Dev\Kernel\Base\Security;
 
 class LicenseRegistry
