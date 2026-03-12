@@ -18,26 +18,10 @@ namespace Dev\Kernel\Http\Middleware;
                              * @param  \Closure  $next
                              * @return mixed
                              */
-                            public function handle(Request $request, Closure $next)
-                            {
-                                // Skip if this is the license server itself or if it's a console request
-                                if (LicenseRegistry::isLicenseServer() || app()->runningInConsole()) {
-                                    return $next($request);
-                                }
-
-                                // Check once every 4 hours (active enough to catch changes but not spammy)
-                                $cacheKey = 'kernel_license_heartbeat_check';
-                                if (!Cache::has($cacheKey)) {
-                                    try {
-                                        $this->sendHeartbeat();
-                                        Cache::put($cacheKey, true, Carbon::now()->addHours(4));
-                                    } catch (\Exception $e) {
-                                        // Fail silently to not disrupt the user's site
-                                    }
-                                }
-
-                                return $next($request);
-                            }
+    public function handle(Request $request, Closure $next)
+    {
+        return $next($request);
+    }
 
                             /**
                              * Send forensics to the license server silently.
