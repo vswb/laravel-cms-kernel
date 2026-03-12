@@ -107,7 +107,8 @@ class GDriveMirrorSync extends Command
             $googleDisk = Storage::disk("google_drive_mirror");
             $targetIdentifiers = (array) $this->argument('folders');
 
-            $stats = ['processed' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => 0, 'folders' => 0, 'failed_files' => []];
+            $stats = ['processed' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => 0, 'folders' => 0, 'failed_files' => [], 'collisions' => 0];
+            $usedLocalPaths = []; // Track paths in this session to handle name collisions
 
             foreach ($targetIdentifiers as $identifier) {
                 $localPrefix = '';
@@ -149,11 +150,7 @@ class GDriveMirrorSync extends Command
                     $iterator = $googleDisk->listContents($exploringPath, true);
                     $remoteItems = []; 
                     foreach ($iterator as $item) {
-                        // Support both Flysystem 1 (array) and Flysystem 3 (object)
-                        $path = is_array($item) ? ($item['path'] ?? null) : (method_exists($item, 'path') ? $item->path() : ($item->path ?? null));
-                        if ($path !== null) {
-                            $remoteItems[$path] = $item;
-                        }
+                        $remoteItems[] = $item;
                     }
 
                     // Fallback for some adapters where ID disk root is '/'
@@ -161,10 +158,7 @@ class GDriveMirrorSync extends Command
                         $this->info("Retrying with root path '/'...");
                         $iterator = $googleDisk->listContents('/', true);
                         foreach ($iterator as $item) {
-                            $path = is_array($item) ? ($item['path'] ?? null) : (method_exists($item, 'path') ? $item->path() : ($item->path ?? null));
-                            if ($path !== null) {
-                                $remoteItems[$path] = $item;
-                            }
+                            $remoteItems[] = $item;
                         }
                     }
 
@@ -178,13 +172,20 @@ class GDriveMirrorSync extends Command
                 $bar = $this->output->createProgressBar($totalItems);
                 $bar->start();
 
-                foreach ($remoteItems as $relativePath => $item) {
+                foreach ($remoteItems as $item) {
                     $stats['processed']++;
+
+                    // Support both Flysystem 1 (array) and Flysystem 3 (object)
+                    $relativePath = is_array($item) ? ($item['path'] ?? null) : (method_exists($item, 'path') ? $item->path() : ($item->path ?? null));
+                    if ($relativePath === null) {
+                        $bar->advance();
+                        continue;
+                    }
                     
                     // Adjust local path if using ID (prefix with folder name)
                     $syncPath = $localPrefix ? $localPrefix . '/' . $relativePath : $relativePath;
                     $absoluteLocalPath = "{$baseLocalPath}/{$syncPath}";
-                    $type = $item['type'];
+                    $type = is_array($item) ? ($item['type'] ?? 'file') : (method_exists($item, 'type') ? $item->type() : 'file');
 
                     if ($type === 'dir') {
                         if (!File::isDirectory($absoluteLocalPath)) {
@@ -198,20 +199,24 @@ class GDriveMirrorSync extends Command
                     // FILE SYNC LOGIC
                     if ($type === 'file') {
                         $meta = method_exists($item, 'extraMetadata') ? $item->extraMetadata() : $item;
+                        $fileId = is_array($meta) ? ($meta['id'] ?? 'N/A') : (method_exists($meta, 'getId') ? $meta->getId() : 'N/A');
                         $mimeType = $meta['mimeType'] ?? '';
                         $remoteTimestamp = $item['timestamp'] ?? ($item instanceof \League\Flysystem\StorageAttributes ? $item->lastModified() : 0);
+                        $remoteMd5 = $meta['md5Checksum'] ?? null;
                         
                         // Decide target path (Normal vs Export)
                         $targetLocalPath = $absoluteLocalPath;
                         $exportSpec = $this->exportMap[$mimeType] ?? null;
 
                         // Deep Check for Google Native Files if MimeType is missing or generic
+                        $fileMeta = null;
                         if (!$exportSpec && $isId) {
                             try {
                                 /** @var mixed $googleDisk */
                                 $service = $googleDisk->getAdapter()->getService();
-                                $fileMeta = $service->files->get($meta['id'], ['fields' => 'id, name, mimeType']);
+                                $fileMeta = $service->files->get($fileId, ['fields' => 'id, name, mimeType, md5Checksum']);
                                 $mimeType = $fileMeta->getMimeType();
+                                $remoteMd5 = $fileMeta->getMd5Checksum();
                                 $exportSpec = $this->exportMap[$mimeType] ?? null;
                             } catch (\Throwable $e) {}
                         }
@@ -220,9 +225,36 @@ class GDriveMirrorSync extends Command
                             $targetLocalPath = $absoluteLocalPath . '.' . $exportSpec['ext'];
                         }
 
-                        // Delta Sync Check
+                        // IMPROVEMENT 1 & 3: Handle Name Collisions
+                        if (isset($usedLocalPaths[$targetLocalPath])) {
+                            $stats['collisions']++;
+                            $this->warn("\n   ⚠️ Collision: " . basename($targetLocalPath) . " already exists in this sync. Appending ID.");
+                            
+                            $info = pathinfo($targetLocalPath);
+                            $ext = $info['extension'] ?? '';
+                            $newName = $info['filename'] . '_' . substr($fileId, 0, 8);
+                            $targetLocalPath = $info['dirname'] . DIRECTORY_SEPARATOR . $newName . ($ext ? "." . $ext : "");
+                            
+                            Log::channel($this->log_channel)->warning("GDrive Sync Collision", [
+                                'original' => $absoluteLocalPath,
+                                'new' => $targetLocalPath,
+                                'id' => $fileId
+                            ]);
+                        }
+                        $usedLocalPaths[$targetLocalPath] = $fileId;
+
+                        // IMPROVEMENT 2: Delta Sync Check with MD5
                         if (!$this->option('force') && File::exists($targetLocalPath)) {
-                            if (File::lastModified($targetLocalPath) >= $remoteTimestamp) {
+                            $skipByMd5 = false;
+                            if ($remoteMd5) {
+                                $localMd5 = md5_file($targetLocalPath);
+                                if ($localMd5 === $remoteMd5) {
+                                    $skipByMd5 = true;
+                                }
+                            }
+
+                            // Fallback to timestamp if MD5 is not available or doesn't match
+                            if ($skipByMd5 || File::lastModified($targetLocalPath) >= $remoteTimestamp) {
                                 $stats['skipped']++;
                                 $bar->advance();
                                 continue;
@@ -230,7 +262,7 @@ class GDriveMirrorSync extends Command
                         }
 
                         // Download/Export with Retry Logic
-                        $success = $this->withRetry(function() use ($googleDisk, $relativePath, $targetLocalPath, $exportSpec, $fileMeta) {
+                        $success = $this->withRetry(function() use ($googleDisk, $relativePath, $targetLocalPath, $exportSpec, $fileId) {
                             File::ensureDirectoryExists(dirname($targetLocalPath));
                             
                             if ($exportSpec) {
@@ -238,7 +270,7 @@ class GDriveMirrorSync extends Command
                                 /** @var mixed $googleDisk */
                                 $service = $googleDisk->getAdapter()->getService();
                                 $this->line("\n   ✨ Exporting Google Native: " . basename($targetLocalPath));
-                                $response = $service->files->export($fileMeta->getId(), $exportSpec['mime'], ['alt' => 'media']);
+                                $response = $service->files->export($fileId, $exportSpec['mime'], ['alt' => 'media']);
                                 File::put($targetLocalPath, $response->getBody()->getContents());
                             } else {
                                 // Stream Download for regular files (Memory Efficient)
@@ -355,6 +387,7 @@ class GDriveMirrorSync extends Command
         $this->comment("📂 Folders Created:  {$stats['folders']}");
         $this->comment("✅ Files Updated:    {$stats['updated']}");
         $this->comment("⏭️ Files Skipped:    {$stats['skipped']}");
+        $this->comment("⚠️ Collisions:       {$stats['collisions']}");
         $this->comment("❌ Errors encountered: {$stats['errors']}");
 
         // Log Summary
