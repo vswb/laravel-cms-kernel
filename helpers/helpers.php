@@ -394,7 +394,6 @@ if (!function_exists('apps_google_sheet')) {
         try {
             Log::channel($logger)->info("==========> " . __FUNCTION__ . " helper is running");
             Log::channel($logger)->info(__FUNCTION__ . ": spreadsheet variables", (array) $spreadsheet);
-            // Log::channel($logger)->info("Spreadsheet data captured", (array) $spreadsheetData);
 
             #region validate required spreadsheet config
             if (isset($spreadsheetData['status']) && $spreadsheetData['status'])
@@ -666,14 +665,14 @@ if (!function_exists('apps_google_sheet')) {
                     }
                 }
                 $values = array_filter($values, fn($value) => !is_null($value) && $value !== '');
-                Log::channel($logger)->info('Spreadsheet Data with default headers', $values);
+                // Log::channel($logger)->info('Spreadsheet Data with default headers', $values);
 
                 $values = array_merge($values, $values_mappings);
             } else {
                 $values = array_values($spreadsheetData);
             }
 
-            Log::channel($logger)->info('Spreadsheet values Data', $values);
+            // Log::channel($logger)->info('Spreadsheet values Data', $values);
             // Log::channel($logger)->info('Writing to spreadsheet', [
             //     'spreadsheet_id' => $spreadsheet['spreadsheet']['id'],
             //     'sheet_id' => $spreadsheet['sheet']['id'],
