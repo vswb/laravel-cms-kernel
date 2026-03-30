@@ -1859,7 +1859,7 @@ if (!function_exists('apps_telegram_send_message')) {
      * @param string $channel Telegram bot channel name (default: 'pull')
      * @param string $logger Log channel name
      * @param array $configs Additional Telegram API options to override defaults
-     * @return void
+     * @return \Telegram\Bot\Objects\Message|null
      */
     function apps_telegram_send_message(
         $message,
@@ -1907,10 +1907,11 @@ if (!function_exists('apps_telegram_send_message')) {
 
             $botToken = config("telegram.bots.{$channel}.token", env('TELEGRAM_BOT_TOKEN'));
             $telegram = new \Telegram\Bot\Api($botToken); // getenv TELEGRAM_BOT_TOKEN, it's working
-            $telegram->sendMessage($telegramDfOptions);
+            return $telegram->sendMessage($telegramDfOptions);
         } catch (Throwable $th) {
             Log::channel($logger)->error(__FUNCTION__, (array) $th->getMessage());
             // DO NOT THROW
+            return null;
         }
         #endregion
     }
