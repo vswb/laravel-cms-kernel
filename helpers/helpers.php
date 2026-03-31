@@ -911,6 +911,22 @@ if (!function_exists('apps_log_channel')) {
     }
 }
 
+if (!function_exists('apps_log')) {
+    /**
+     * Smart Logging Helper: Automatically registers log channels at runtime if they are not defined.
+     * Purpose: Ensures logging remains robust and fail-safe, particularly in background/queue processes
+     * where dynamic configurations from the web request might be lost.
+     * 
+     * @param string $logger Channel name (e.g., 'daily', 'spreadsheet', 'member-123-custom')
+     * @param int|null $author_id Optional author ID for member-prefixed logs
+     * @return \Illuminate\Log\Logger
+     */
+    function apps_log(string $logger = 'daily', $author_id = null)
+    {
+        return Log::channel(apps_log_channel($logger, $author_id));
+    }
+}
+
 if (!function_exists('apps_log_write')) {
     /**
      * Advanced logging for the application.
