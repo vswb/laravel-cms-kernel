@@ -1917,6 +1917,20 @@ if (!function_exists('apps_telegram_send_message')) {
     }
 }
 
+if (!function_exists('apps_telegram_clean_markdown')) {
+    /**
+     * Clean special markdown characters to prevent Telegram parsing errors
+     *
+     * @param string $text
+     * @return string
+     */
+    function apps_telegram_clean_markdown($text)
+    {
+        if (!$text) return "";
+        return str_replace(['_', '*', '`', '['], '', $text);
+    }
+}
+
 if (!function_exists('apps_phone_extraction')) {
     /**
      * Extract phone number from a string using regex pattern.
