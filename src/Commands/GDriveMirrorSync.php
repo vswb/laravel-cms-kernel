@@ -23,9 +23,10 @@ class GDriveMirrorSync extends Command
 {
     /**
      * The name and signature of the console command.
+     * php /Users/eugene/Sites/pull-server/artisan gdrive:mirror:sync 0Bw6yYZTQJcm3aGoxTGJuY1p1ZU0 --path="/Volumes/WD-DATA1/OneDrive" --retry=10 --force
      */
     protected $signature = 'gdrive:mirror:sync
-        {folders* : specific folders on Google Drive to mirror, e.g., 2022 2023}
+        {folders* : Google_Folder_ID}
         {--force : Force re-download/overwrite all files from Drive to Local (SAFE: does NOT delete files)}
         {--retry=3 : Number of retries for each file operation on network failure}
         {--path= : Custom local storage path (defaults to storage/app/google_drive_mirror)}';
