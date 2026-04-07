@@ -28,7 +28,7 @@ use Symfony\Component\HttpFoundation\Response;
 if (!function_exists('apps_recursive_sanitize_for_xml')) {
     /**
      * Recursively sanitize data structure for XML compatibility.
-     * 
+     *
      * Traverses arrays and objects recursively, applying XML sanitization
      * to all string values. Skips null, boolean, and numeric values.
      *
@@ -287,7 +287,7 @@ if (!function_exists('apps_build_mapped_values')) {
         string $mode = 'coalesce',
         bool $removeEmptyValues = true
     ): array {
-        apps_log($logger)->info('hub_step fields mapping to spreadsheet', (array) $mappings);
+        Log::channel($logger)->info('hub_step fields mapping to spreadsheet', (array) $mappings);
 
         $values_mappings = [];
 
@@ -295,7 +295,7 @@ if (!function_exists('apps_build_mapped_values')) {
             /* reset value before each loop to avoid data contamination */
             $values_mappings[$mapping_key] = null;
             $bucket = [];
-            apps_log($logger)->info('mapping_key', (array) $mapping_key);
+            Log::channel($logger)->info('mapping_key', (array) $mapping_key);
 
             foreach ((array) $_mappings as $__mapping) {
                 if (!isset($__mapping['key']))
@@ -312,11 +312,11 @@ if (!function_exists('apps_build_mapped_values')) {
 
                 /* chuẩn hóa key: ascii + slug + bỏ separator */
                 $__mapping_key = Str::slug(Str::ascii($rawKey), '');
-                apps_log($logger)->info('__mapping_key slug', (array) $__mapping_key);
+                Log::channel($logger)->info('__mapping_key slug', (array) $__mapping_key);
 
                 /* get value from input */
                 $raw = Arr::get($data, $__mapping_key);
-                apps_log($logger)->info('__raw value', (array) $raw);
+                Log::channel($logger)->info('__raw value', (array) $raw);
 
                 /* normalize value: trim, remove empty, support arrays */
                 if (is_array($raw)) {
@@ -345,7 +345,7 @@ if (!function_exists('apps_build_mapped_values')) {
                     $values_mappings[$mapping_key] = $bucket[0];
                 }
             } else {
-                apps_log($logger)->warning('hub_step fields mapping data is empty');
+                Log::channel($logger)->warning('hub_step fields mapping data is empty');
             }
         }
 
@@ -357,7 +357,7 @@ if (!function_exists('apps_build_mapped_values')) {
             );
         }
 
-        apps_log($logger)->info('hub_step fields mapping data to spreadsheet', $values_mappings);
+        Log::channel($logger)->info('hub_step fields mapping data to spreadsheet', $values_mappings);
 
         return $values_mappings;
     }
@@ -402,8 +402,8 @@ if (!function_exists('apps_google_sheet')) {
         $cache_force_refresh = false // allow bypass cache
     ) {
         try {
-            apps_log($logger)->info("==========> " . __FUNCTION__ . " helper is running");
-            apps_log($logger)->info(__FUNCTION__ . ": spreadsheet variables", (array) $spreadsheet);
+            Log::channel($logger)->info("==========> " . __FUNCTION__ . " helper is running");
+            Log::channel($logger)->info(__FUNCTION__ . ": spreadsheet variables", (array) $spreadsheet);
 
             #region validate required spreadsheet config
             if (isset($spreadsheetData['status']) && $spreadsheetData['status'])
@@ -424,7 +424,7 @@ if (!function_exists('apps_google_sheet')) {
             if (!Arr::has($spreadsheet, 'sheet.name') || blank(Arr::get($spreadsheet, 'sheet.name'))) {
                 throw new Exception("Sheet name is required.");
             }
-            // apps_log($logger)->info('[GSheet::Spreadsheet Info]', [
+            // Log::channel($logger)->info('[GSheet::Spreadsheet Info]', [
             //     'spreadsheet_id' => Arr::get($spreadsheet, 'spreadsheet.id'),
             //     'sheet_id' => Arr::get($spreadsheet, 'sheet.id'),
             //     'sheet_name' => Arr::get($spreadsheet, 'sheet.name'),
@@ -442,10 +442,10 @@ if (!function_exists('apps_google_sheet')) {
             try {
                 if ($credentialsType == 'oauth2') { // using laravel style
                     #region Use a "OAuth2 Account" to connection and spreadsheet process data
-                    // apps_log($logger)->info("Starting with credential '{$credentialsType}'");
+                    // Log::channel($logger)->info("Starting with credential '{$credentialsType}'");
 
                     $connection = $connection['connection'];
-                    // apps_log($logger)->info("Connection captured", $connection);
+                    // Log::channel($logger)->info("Connection captured", $connection);
                     $accessToken = [
                         'access_token' => $connection['provider_exchange_token'],
                         'refresh_token' => $connection['provider_exchange_refresh_token'],
@@ -466,7 +466,7 @@ if (!function_exists('apps_google_sheet')) {
                     #endregion
 
                     #region Use a "Service Account" to connection and spreadsheet process data
-                    // apps_log($logger)->info("Starting with credential '{$credentialsType}'");
+                    // Log::channel($logger)->info("Starting with credential '{$credentialsType}'");
 
                     #region Setup Google Credentials
                     if (!$credentialsFile) {
@@ -502,7 +502,7 @@ if (!function_exists('apps_google_sheet')) {
                         $client->setAccessToken($accessToken);
                     }
                     if ($client->isAccessTokenExpired()) {
-                        apps_log($logger)->warning(__FUNCTION__, (array) "Token is expired, it will be automatically renew rightnow");
+                        Log::channel($logger)->warning(__FUNCTION__, (array) "Token is expired, it will be automatically renew rightnow");
                         if ($client->getRefreshToken()) {
                             $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
                         } else {
@@ -521,7 +521,7 @@ if (!function_exists('apps_google_sheet')) {
                     #endregion
                 }
             } catch (\Throwable $th) {
-                apps_log($logger)->error(__FUNCTION__ . ": " . $th->getMessage());
+                Log::channel($logger)->error(__FUNCTION__ . ": " . $th->getMessage());
                 throw $th; // throw errors
             }
             #endregion
@@ -547,7 +547,7 @@ if (!function_exists('apps_google_sheet')) {
                     'sheet_name' => Arr::get($spreadsheet, 'sheet.name'),
                 ]));
 
-                // apps_log($logger)->info('[GSheet::CacheKey Usage]', [
+                // Log::channel($logger)->info('[GSheet::CacheKey Usage]', [
                 //     'cache_key' => $cacheKey,
                 //     'spreadsheet_id' => $spreadsheet['spreadsheet']['id'],
                 //     'sheet_id' => $spreadsheet['sheet']['id'],
@@ -559,14 +559,14 @@ if (!function_exists('apps_google_sheet')) {
 
                 if ($cache_headers && !$cache_force_refresh) {
 
-                    // if (Cache::has($cacheKey)) apps_log($logger)->info('[GSheet Cache::Hit]', ['cache_key' => $cacheKey]);
-                    // else apps_log($logger)->info('[GSheet Cache::Miss]', ['cache_key' => $cacheKey]);
+                    // if (Cache::has($cacheKey)) Log::channel($logger)->info('[GSheet Cache::Hit]', ['cache_key' => $cacheKey]);
+                    // else Log::channel($logger)->info('[GSheet Cache::Miss]', ['cache_key' => $cacheKey]);
 
                     /**
                      * if cache HIT => remember will automatically return cached data if available, otherwise will run callback and store data in cache
                      */
                     $headers = Cache::remember($cacheKey, $cache_ttl, function () use ($accessToken, $spreadsheet, $logger, $cacheKey, $cache_ttl) {
-                        // apps_log($logger)->info('[GSheet Cache::Rebuilding headers]', [
+                        // Log::channel($logger)->info('[GSheet Cache::Rebuilding headers]', [
                         //     'spreadsheet_id' => $spreadsheet['spreadsheet']['id'],
                         //     'sheet_id' => $spreadsheet['sheet']['id'] ?? '',
                         //     'sheet_name' => $spreadsheet['sheet']['name'] ?? '',
@@ -584,14 +584,14 @@ if (!function_exists('apps_google_sheet')) {
 
                     #region debug cache
                     // apps_cache_debug($cacheKey, $logger);
-                    // apps_log($logger)->info('[GSheet Cache::Returned Headers]', [
+                    // Log::channel($logger)->info('[GSheet Cache::Returned Headers]', [
                     //     'source' => Cache::has($cacheKey) ? 'cache-hit' : 'callback',
                     //     'cache_key' => $cacheKey,
                     //     'headers' => $headers,
                     // ]);
                     #endregion
                 } else {
-                    // apps_log($logger)->info('[GSheet Cache::Bypass or Forced Refresh]', [
+                    // Log::channel($logger)->info('[GSheet Cache::Bypass or Forced Refresh]', [
                     //     'cache_force_refresh' => $cache_force_refresh,
                     //     'enabled' => $cache_headers,
                     //     'cache_key' => $cacheKey,
@@ -608,7 +608,7 @@ if (!function_exists('apps_google_sheet')) {
 
                     if ($cache_headers) {
                         Cache::put($cacheKey, $headers, $cache_ttl);
-                        // apps_log($logger)->info('[GSheet Cache::Store]', [
+                        // Log::channel($logger)->info('[GSheet Cache::Store]', [
                         //     'cache_key' => $cacheKey,
                         //     'ttl' => $cache_ttl,
                         // ]);
@@ -624,21 +624,21 @@ if (!function_exists('apps_google_sheet')) {
                 #endregion
 
                 if (count($mappings)) { // Custom headers mappings w/ "field key" of ads-form vs "column" name of spreadsheet.
-                    apps_log($logger)->info('hub_step fields mapping to spreadsheet', (array) $mappings);
+                    Log::channel($logger)->info('hub_step fields mapping to spreadsheet', (array) $mappings);
 
                     #region before improve
                     // foreach ($mappings as $mapping_key => $_mappings) {
                     //     $values_mappings[$mapping_key] = null;
-                    //     apps_log($logger)->info('mapping_key', (array) $mapping_key);
+                    //     Log::channel($logger)->info('mapping_key', (array) $mapping_key);
                     //     if (count($_mappings)) {
                     //         foreach ($_mappings as $__mapping) {
-                    //             /** 
+                    //             /**
                     //              * chú ý: tên cột của spreadsheet không chấp nhận dấu _ và bất kỳ ký tự ngoài các chữ alphebet
                     //              * eg: "1009385287145182|số_điện_thoại" or "số_điện_thoại or sđt_của_cha_mẹ:"
                     //              */
                     //             $__mapping_key = Str::slug($__mapping['key'], '');
                     //             $__mapping_key = isset(explode("|", $__mapping_key)[1]) ? explode("|", $__mapping_key)[1] : $__mapping_key;
-                    //             apps_log($logger)->info('__mapping_key slug', (array) $__mapping_key);
+                    //             Log::channel($logger)->info('__mapping_key slug', (array) $__mapping_key);
 
                     //             if (
                     //                 (isset($spreadsheetData['providerformid']) && $spreadsheetData['providerformid']) ||
@@ -666,7 +666,7 @@ if (!function_exists('apps_google_sheet')) {
                     );
                     #endregion
 
-                    apps_log($logger)->info('hub_step fields mapping data to spreadsheet', $values_mappings);
+                    Log::channel($logger)->info('hub_step fields mapping data to spreadsheet', $values_mappings);
                 }
 
                 foreach ($headers as $header) { // Default headers mappings
@@ -675,21 +675,21 @@ if (!function_exists('apps_google_sheet')) {
                     }
                 }
                 $values = array_filter($values, fn($value) => !is_null($value) && $value !== '');
-                // apps_log($logger)->info('Spreadsheet Data with default headers', $values);
+                // Log::channel($logger)->info('Spreadsheet Data with default headers', $values);
 
                 $values = array_merge($values, $values_mappings);
             } else {
                 $values = array_values($spreadsheetData);
             }
 
-            // apps_log($logger)->info('Spreadsheet values Data', $values);
-            // apps_log($logger)->info('Writing to spreadsheet', [
+            // Log::channel($logger)->info('Spreadsheet values Data', $values);
+            // Log::channel($logger)->info('Writing to spreadsheet', [
             //     'spreadsheet_id' => $spreadsheet['spreadsheet']['id'],
             //     'sheet_id' => $spreadsheet['sheet']['id'],
             //     'sheet_name' => $spreadsheet['sheet']['name'],
             // ]);
 
-            // apps_log($logger)->info('[GSheet Append::Started]', [
+            // Log::channel($logger)->info('[GSheet Append::Started]', [
             //     'spreadsheet_id' => Arr::get($spreadsheet, 'spreadsheet.id'),
             //     'sheet_id' => Arr::get($spreadsheet, 'sheet.id'),
             //     'values' => $values,
@@ -702,7 +702,7 @@ if (!function_exists('apps_google_sheet')) {
                 ->sheetById(Arr::get($spreadsheet, 'sheet.id'))
                 ->append([$values]);
 
-            // apps_log($logger)->info('[GSheet Append::Done]', [
+            // Log::channel($logger)->info('[GSheet Append::Done]', [
             //     'result' => $result->toSimpleObject() ?? [],
             // ]);
             #endregion Spreadsheet process data
@@ -720,8 +720,8 @@ if (!function_exists('apps_google_sheet')) {
                 "message" => "Request has been successfully processed"
             ]);
         } catch (\Throwable $th) {
-            apps_log($logger)->error(__FUNCTION__, (array) $th->getMessage());
-            apps_log($logger)->error(__FUNCTION__, (array) $th->getTraceAsString());
+            Log::channel($logger)->error(__FUNCTION__, (array) $th->getMessage());
+            Log::channel($logger)->error(__FUNCTION__, (array) $th->getTraceAsString());
             return json_encode([
                 "error" => true,
                 'code' => $th->getCode(),
@@ -735,7 +735,7 @@ if (!function_exists('apps_google_sheet')) {
             ]);
         }
 
-        apps_log($logger)->warning(__FUNCTION__ . '::Unexpected flow fallback');
+        Log::channel($logger)->warning(__FUNCTION__ . '::Unexpected flow fallback');
         return json_encode([
             "error" => true,
             'code' => Response::HTTP_BAD_REQUEST,
@@ -926,7 +926,7 @@ if (!function_exists('apps_log')) {
      * Smart Logging Helper: Automatically registers log channels at runtime if they are not defined.
      * Purpose: Ensures logging remains robust and fail-safe, particularly in background/queue processes
      * where dynamic configurations from the web request might be lost.
-     * 
+     *
      * @param string $logger Channel name (e.g., 'daily', 'spreadsheet', 'member-123-custom')
      * @param int|null $author_id Optional author ID for member-prefixed logs
      * @return \Illuminate\Log\Logger
@@ -985,7 +985,7 @@ if (!function_exists('apps_log_write')) {
         // When block starts → save timestamp
         if ($mode === 'start') {
             $blockStartTimes[$message] = microtime(true);
-            apps_log($channelName)->{$level}("📥 [BLOCK START] {$message}");
+            Log::channel($channelName)->{$level}("📥 [BLOCK START] {$message}");
             return;
         }
 
@@ -996,7 +996,7 @@ if (!function_exists('apps_log_write')) {
                 : 0;
 
             unset($blockStartTimes[$message]);
-            apps_log($channelName)->{$level}("✅ [BLOCK END] {$message} (duration={$duration}ms)");
+            Log::channel($channelName)->{$level}("✅ [BLOCK END] {$message} (duration={$duration}ms)");
             return;
         }
 
@@ -1012,7 +1012,7 @@ if (!function_exists('apps_log_write')) {
                 ? $exception->getMessage() . ' @ ' . $exception->getFile() . ':' . $exception->getLine()
                 : 'Unknown error';
 
-            apps_log($channelName)->error("❌ [BLOCK END] {$message} failed (duration={$duration}ms) | {$errorMsg}");
+            Log::channel($channelName)->error("❌ [BLOCK END] {$message} failed (duration={$duration}ms) | {$errorMsg}");
             return;
         }
 
@@ -1022,12 +1022,12 @@ if (!function_exists('apps_log_write')) {
                 ? round((microtime(true) - $blockStartTimes[$message]) * 1000, 2)
                 : 0;
 
-            apps_log($channelName)->{$level}("🔹 [STEP +{$elapsed}ms] {$message}");
+            Log::channel($channelName)->{$level}("🔹 [STEP +{$elapsed}ms] {$message}");
             return;
         }
 
         // Default → regular log like old version
-        apps_log($channelName)->{$level}($message);
+        Log::channel($channelName)->{$level}($message);
     }
 }
 
@@ -1179,7 +1179,7 @@ if (!function_exists('apps_pull_login')) {
                     "message" => $th->getMessage()
                 ]
             ];
-            apps_log($logger)->error('Exception', $result);
+            Log::channel($logger)->error('Exception', $result);
         }
 
         return $result;
@@ -1202,7 +1202,7 @@ if (!function_exists('apps_vtiger_login')) {
      */
     function apps_vtiger_login($username, $accessKey, $method = 'POST', $logger = 'daily')
     {
-        // apps_log($logger)->info("==========> " . __FUNCTION__ . " helper is running");
+        // Log::channel($logger)->info("==========> " . __FUNCTION__ . " helper is running");
         try {
             $result = (function ($method, $url, $data, $logger) {
                 ///// GET CHALLENGE
@@ -1219,7 +1219,7 @@ if (!function_exists('apps_vtiger_login')) {
                 $challenge = curl_exec($curl);
                 $challenge = json_decode($challenge, true);
 
-                // apps_log($logger)->info($challenge);
+                // Log::channel($logger)->info($challenge);
 
                 curl_close($curl);
 
@@ -1266,7 +1266,7 @@ if (!function_exists('apps_vtiger_login')) {
                     curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1); // RETURN THE CONTENTS OF THE CALL
 
                     $result = curl_exec($curl);
-                    // apps_log($logger)->info($result);
+                    // Log::channel($logger)->info($result);
 
                     if (!curl_errno($curl)) {
                         $info = curl_getinfo($curl);
@@ -1329,7 +1329,7 @@ if (!function_exists('apps_toyota_crm_login')) {
     function apps_toyota_crm_login($username, $password, $method = 'POST', $logger = 'daily')
     {
         try {
-            // apps_log($logger)->info("==========> " . __FUNCTION__ . " helper is running");
+            // Log::channel($logger)->info("==========> " . __FUNCTION__ . " helper is running");
             $result = (function ($method, $url, $data, $logger = 'daily') {
                 $curl = curl_init();
                 switch ($method) {
@@ -1420,7 +1420,7 @@ if (!function_exists('apps_mmv_crm_login')) {
     function apps_mmv_crm_login($username = 'mmv_tsp', $password = 'Ci8p2P3B', $method = 'POST', $logger = 'daily'): array
     {
         try {
-            // apps_log($logger)->info("==========> " . __FUNCTION__ . " helper is running");
+            // Log::channel($logger)->info("==========> " . __FUNCTION__ . " helper is running");
             $result = (function ($method, $url, $data) {
                 $curl = curl_init();
 
@@ -1559,7 +1559,7 @@ if (!function_exists('apps_apollo_crm_login')) {
     function apps_apollo_crm_login($username, $password, $sogoAccessToken, $method = 'POST', $logger = 'daily')
     {
         try {
-            // apps_log($logger)->info("==========> " . __FUNCTION__ . " helper is running");
+            // Log::channel($logger)->info("==========> " . __FUNCTION__ . " helper is running");
             $result = (function ($method, $url, $data, $sogoAccessToken, $logger = 'daily') {
                 $curl = curl_init();
                 switch ($method) {
@@ -1851,7 +1851,7 @@ if (!function_exists('apps_facebook_parse_signed_request')) {
         // confirm the signature
         $expected_sig = hash_hmac('sha256', $payload, $secret, $raw = true);
         if ($sig !== $expected_sig) {
-            // apps_log($logger)->info('Bad Signed JSON signature!');
+            // Log::channel($logger)->info('Bad Signed JSON signature!');
             error_log('Bad Signed JSON signature!');
             return null;
         }
@@ -1899,7 +1899,7 @@ if (!function_exists('apps_telegram_send_message')) {
                 $logger = 'daily';
 
             if (!in_array(app()->environment(), ['production', 'prod'], true) && !env('TELEGRAM_NOTIFY_ENABLE', false)) { // giới hạn gửi ở production, hoặc nếu bật force notify
-                apps_log($logger)->info('[Telegram::Skipped]', [
+                Log::channel($logger)->info('[Telegram::Skipped]', [
                     'env' => app()->environment(),
                     'reason' => 'Not in production and TELEGRAM_NOTIFY_ENABLE is not true'
                 ]);
@@ -1922,8 +1922,8 @@ if (!function_exists('apps_telegram_send_message')) {
                 ];
             }
 
-            apps_log($logger)->info("configs", $configs);
-            apps_log($logger)->info("telegramDfOptions", $telegramDfOptions);
+            Log::channel($logger)->info("configs", $configs);
+            Log::channel($logger)->info("telegramDfOptions", $telegramDfOptions);
 
             $telegramDfOptions['text'] = \Illuminate\Support\Str::limit( // Can use facades app('url) but helper str() not available right now, possibly because not loaded
                 is_array($message) ?
@@ -1935,7 +1935,7 @@ if (!function_exists('apps_telegram_send_message')) {
             $telegram = new \Telegram\Bot\Api($botToken); // getenv TELEGRAM_BOT_TOKEN, it's working
             return $telegram->sendMessage($telegramDfOptions);
         } catch (Throwable $th) {
-            apps_log($logger)->error(__FUNCTION__, (array) $th->getMessage());
+            Log::channel($logger)->error(__FUNCTION__, (array) $th->getMessage());
             // DO NOT THROW
             return null;
         }
@@ -2004,10 +2004,10 @@ if (!function_exists('apps_phone_extraction')) {
  * Register this key in the group_xxx list (array type storing max 100 keys).
  * Register group name in global list (for later reset).
  * If no $group, simply return $cacheKey.
- * 
+ *
  * @param string $cacheKey: specific cache name (example: user_1234)
  * @param string $group: cache group name (example: user_list)
- * 
+ *
  * Returns the key to use for storing in cache.
  */
 if (!function_exists('apps_cache_get_key')) {
@@ -2016,7 +2016,7 @@ if (!function_exists('apps_cache_get_key')) {
      * Save group in the list of keys for management and deletion
      * Store max 100 keys per group to avoid redis or machine memory overload.
      * When reaching limit, the first element (FIFO) will be deleted from cache and groupData.
-     * 
+     *
      * @param string $cacheKey : Cache key in group, if not present then add queue to group's key list
      * @param string|null $group : Cache group name, contains group's common keys. if set to null then it's a separate cacheKey not in any group
      * @return string Applied key with prefix (app:cacheKey)
@@ -2024,6 +2024,8 @@ if (!function_exists('apps_cache_get_key')) {
     function apps_cache_get_key(string $cacheKey = 'default', string|null $group = null)
     {
         try {
+            $logger = apps_log_channel("app_cache");
+
             // Prefix key by APP_NAME to separate between apps/DB
             $prefix = Str::slug(env('APP_NAME', 'app'));
             $appliedKey = $prefix . ":" . $cacheKey;
@@ -2063,8 +2065,8 @@ if (!function_exists('apps_cache_get_key')) {
             return $appliedKey;
         } catch (\Throwable $th) {
             /* Log error if exception occurs */
-            apps_log("app_cache")->error("Get data error at: " . $cacheKey . ", " . $group);
-            apps_log("app_cache")->error($th->getMessage());
+            Log::channel($logger)->error("Get data error at: " . $cacheKey . ", " . $group);
+            Log::channel($logger)->error($th->getMessage());
             return Str::slug(env('APP_NAME')) . ":" . 'default';
         }
     }
@@ -2085,12 +2087,12 @@ if (!function_exists('apps_cache_store')) {
      * @example
      * // Way 1: Pass original key (calls apps_cache_get_key)
      * apps_cache_store('user_123', $userData, 3600, 'users');
-     * 
+     *
      * // Way 2: Pass appliedKey already obtained (OPTIMAL - avoid calling apps_cache_get_key twice)
      * $appliedKey = apps_cache_get_key('user_123', 'users');
      * // ... check cache ...
      * apps_cache_store($appliedKey, $userData, 3600, 'users', true); // ⚠️ STILL NEED TO PASS GROUP!
-     * 
+     *
      * @return void
      */
     function apps_cache_store(
@@ -2101,6 +2103,8 @@ if (!function_exists('apps_cache_store')) {
         bool $isAppliedKey = false
     ): string|null {
         try {
+            $logger = apps_log_channel("app_cache");
+
             if ($isAppliedKey) {
                 // If appliedKey already exists, just store data
                 $cacheKey = $key;
@@ -2138,8 +2142,8 @@ if (!function_exists('apps_cache_store')) {
             Cache::put($cacheKey, $data, $time);
             return $cacheKey;
         } catch (\Throwable $th) {
-            apps_log("app_cache")->error("Store data error at: " . $key . ", " . $group);
-            apps_log("app_cache")->error($th->getMessage());
+            Log::channel($logger)->error("Store data error at: " . $key . ", " . $group);
+            Log::channel($logger)->error($th->getMessage());
             return null;
         }
     }
@@ -2174,11 +2178,13 @@ if (!function_exists('apps_cache_get')) {
         bool $isAppliedKey = false
     ) {
         try {
+            $logger = apps_log_channel("app_cache");
+
             $cacheKey = $isAppliedKey ? $key : apps_cache_get_key($key, $group);
             return Cache::get($cacheKey, $default);
         } catch (\Throwable $th) {
-            apps_log("app_cache")->error("Get data error at: " . $key . ", " . $group);
-            apps_log("app_cache")->error($th->getMessage());
+            Log::channel($logger)->error("Get data error at: " . $key . ", " . $group);
+            Log::channel($logger)->error($th->getMessage());
             return $default;
         }
     }
@@ -2187,7 +2193,7 @@ if (!function_exists('apps_cache_get')) {
 if (!function_exists('apps_cache_get_caller_info')) {
     /**
      * Get caller information to trace root cause
-     * 
+     *
      * @return array
      */
     function apps_cache_get_caller_info(): array
@@ -2250,7 +2256,7 @@ if (!function_exists('apps_cache_flush')) {
      * // Way 2: Pass appliedKey already obtained (OPTIMAL - avoid calling apps_cache_get_key)
      * $appliedKey = apps_cache_get_key('user_123', null);
      * apps_cache_flush($appliedKey, null, true); // ⚠️ MUST SET isAppliedKey = true
-     * 
+     *
      * @return void
      */
     function apps_cache_flush(
@@ -2259,13 +2265,15 @@ if (!function_exists('apps_cache_flush')) {
         bool $isAppliedKey = false
     ) {
         try {
+            $logger = apps_log_channel("app_cache");
+
             // Get caller information to trace root cause
             $caller = apps_cache_get_caller_info();
 
             if (blank($group)) {
                 // If no group, delete cache by specific key
                 if (blank($cacheKey)) {
-                    apps_log("app_cache")->warning("Flush skipped: cacheKey is blank");
+                    Log::channel($logger)->warning("Flush skipped: cacheKey is blank");
                     return;
                 }
 
@@ -2303,14 +2311,14 @@ if (!function_exists('apps_cache_flush')) {
                             Cache::forget($groupCacheKey);
                         }
 
-                        apps_log("app_cache")->debug("Removed key from group", [
+                        Log::channel($logger)->debug("Removed key from group", [
                             'applied_key' => $appliedKey,
                             'group' => $groupSlug
                         ]);
                     }
                 }
 
-                apps_log("app_cache")->info("Flushed cached data", [
+                Log::channel($logger)->info("Flushed cached data", [
                     'original_key' => $cacheKey,
                     'applied_key' => $appliedKey,
                     'caller' => $caller['method'] ?? 'unknown',
@@ -2328,7 +2336,7 @@ if (!function_exists('apps_cache_flush')) {
                     return;
                 }
 
-                apps_log("app_cache")->info("Flushing cached data with group: $group", [
+                Log::channel($logger)->info("Flushing cached data with group: $group", [
                     'group' => $group,
                     'caller' => $caller['method'] ?? 'unknown',
                     'file' => basename($caller['file'] ?? 'unknown') . ':' . ($caller['line'] ?? 0)
@@ -2337,7 +2345,7 @@ if (!function_exists('apps_cache_flush')) {
                 $groupData = json_decode(Cache::get($groupCacheKey), true) ?? [];
 
                 if (blank($groupData) || count($groupData) === 0) {
-                    apps_log("app_cache")->debug("Group data is empty");
+                    Log::channel($logger)->debug("Group data is empty");
                     Cache::forget($groupCacheKey); // Xóa group key ngay cả khi không có data
                     return;
                 }
@@ -2345,12 +2353,12 @@ if (!function_exists('apps_cache_flush')) {
                 // Delete each cache key in group
                 foreach ($groupData as $appliedKey) {
                     Cache::forget($appliedKey);
-                    apps_log("app_cache")->debug("Flushed cached data: $appliedKey");
+                    Log::channel($logger)->debug("Flushed cached data: $appliedKey");
                 }
 
                 // Delete group cache key after deleting all child cache
                 Cache::forget($groupCacheKey);
-                apps_log("app_cache")->info("Flushed group cache", [
+                Log::channel($logger)->info("Flushed group cache", [
                     'group' => $group,
                     'group_cache_key' => $groupCacheKey,
                     'total_keys' => count($groupData),
@@ -2359,7 +2367,7 @@ if (!function_exists('apps_cache_flush')) {
                 ]);
             }
         } catch (\Throwable $th) {
-            apps_log("app_cache")->error("Flush data error", [
+            Log::channel($logger)->error("Flush data error", [
                 'cacheKey' => $cacheKey,
                 'group' => $group,
                 'isAppliedKey' => $isAppliedKey,
@@ -2384,16 +2392,18 @@ if (!function_exists('apps_cache_reset')) {
     function apps_cache_reset()
     {
         try {
+            $logger = apps_log_channel("app_cache");
+
             $app_cache_key = md5("app_data_cache_list");
             $cache_list = Cache::has($app_cache_key) ? Cache::get($app_cache_key) : []; // Get list of groups
             foreach ($cache_list as $key => $flag) {
-                apps_log("app_cache")->info("- Delete cache group " . $key);
+                Log::channel($logger)->info("- Delete cache group " . $key);
                 apps_cache_flush(null, $key); // Filter each group and delete all cache keys in it
             }
             Cache::forget($app_cache_key); // Delete cache management file
         } catch (\Throwable $th) {
-            apps_log("app_cache")->error("Reset cache data error");
-            apps_log("app_cache")->error($th->getMessage());
+            Log::channel($logger)->error("Reset cache data error");
+            Log::channel($logger)->error($th->getMessage());
         }
     }
 }
@@ -2409,6 +2419,8 @@ if (!function_exists('apps_cache_debug')) {
      */
     function apps_cache_debug(string $key, string $channel = 'daily', bool $showValue = true): void
     {
+        $logger = apps_log_channel("app_cache");
+
         $appliedKey = apps_cache_get_key($key, null);
         $status = Cache::has($appliedKey) ? 'HIT' : 'MISS';
 
@@ -2422,7 +2434,7 @@ if (!function_exists('apps_cache_debug')) {
             $logData['value'] = apps_cache_get($key, null, null, false);
         }
 
-        apps_log($channel)->info('[Cache Debug]', $logData);
+        Log::channel($logger)->info('[Cache Debug]', $logData);
     }
 }
 #endregion
@@ -2729,7 +2741,7 @@ if (!function_exists('apps_leadgen_prepare_data')) {
      */
     function apps_leadgen_prepare_data($lead, $mappings = null, $logger = 'daily')
     {
-        apps_log($logger)->info("==========> " . __FUNCTION__ . " helper is running");
+        Log::channel($logger)->info("==========> " . __FUNCTION__ . " helper is running");
 
         #region pre processing data
         $lead = apps_array_remove_null($lead); // remove elements having NULL value from multidimentional array
@@ -2753,18 +2765,18 @@ if (!function_exists('apps_leadgen_prepare_data')) {
         #region hub_step fields mapping
         if (!blank($mappings)) { // hub_step fields mapping
             try {
-                // apps_log($logger)->info('hub_step fields mapping to database', $mappings);
+                // Log::channel($logger)->info('hub_step fields mapping to database', $mappings);
                 foreach ($mappings as $mapping_key => $_mappings) {
-                    // apps_log($logger)->info('mapping_key', (array) $mapping_key);
+                    // Log::channel($logger)->info('mapping_key', (array) $mapping_key);
                     if (count($_mappings)) {
                         foreach ($_mappings as $__mapping) {
-                            /** 
+                            /**
                              * chú ý: tên cột của spreadsheet không chấp nhận dấu _ và bất kỳ ký tự ngoài các chữ alphebet
                              * eg: "1009385287145182|số_điện_thoại" or "số_điện_thoại or sđt_của_cha_mẹ:"
                              */
                             $__mapping_key = strtolower(Str::slug($__mapping['key'], '_')); # <<<<< chú ý gạch chân ghi làm việc với gg spreadsheet.
                             $__mapping_key = isset(explode("|", $__mapping_key)[1]) ? explode("|", $__mapping_key)[1] : $__mapping_key;
-                            // apps_log($logger)->info('__mapping_key slug', (array) $__mapping_key);
+                            // Log::channel($logger)->info('__mapping_key slug', (array) $__mapping_key);
 
                             if (
                                 (isset($lead['providerformid']) && $lead['providerformid']) ||
@@ -2784,8 +2796,8 @@ if (!function_exists('apps_leadgen_prepare_data')) {
                     }
                 }
             } catch (\Throwable $th) {
-                apps_log($logger)->error($th->getMessage());
-                apps_log($logger)->error($th->getTraceAsString());
+                Log::channel($logger)->error($th->getMessage());
+                Log::channel($logger)->error($th->getTraceAsString());
                 // DO NOT THROW
             }
         }
@@ -2934,7 +2946,7 @@ if (!function_exists('apps_leadgen_prepare_data')) {
             'tax',
         ], null);
 
-        apps_log($logger)->info("==========> " . __FUNCTION__, array_change_key_case(array_merge($origin, $lead), CASE_LOWER));
+        Log::channel($logger)->info("==========> " . __FUNCTION__, array_change_key_case(array_merge($origin, $lead), CASE_LOWER));
         return array_change_key_case(array_merge($origin, $lead), CASE_LOWER);
     }
 }
