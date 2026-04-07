@@ -6,11 +6,7 @@
   "autoload": {
     "psr-4": {
       "Dev\\Kernel\\": "src/"
-    },
-    "files": [
-      "helpers/constants.php",
-      "helpers/helpers.php"
-    ]
+    }
   },
   "require": {
     "laravel/framework": "^9.0|^10.0|^11.0|^12.0",
