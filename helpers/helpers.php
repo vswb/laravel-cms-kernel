@@ -866,23 +866,7 @@ if (!function_exists('apps_currency_exchange')) {
      */
     function apps_currency_exchange()
     {
-        try {
-            $responseAccessToken = Http::get('https://vapi.vnappmob.com/api/request_api_key?scope=exchange_rate');
-            $accessToken = trim(Arr::get($responseAccessToken->json(), 'results'));
-
-            $responseExchangeRate = Http::withHeaders([
-                'Authorization' => "Bearer $accessToken"
-            ])
-                ->get('https://vapi.vnappmob.com/api/v2/exchange_rate/vcb');
-            $result = Arr::get($responseExchangeRate->json(), 'results');
-            $dollarSellPrice = Arr::get(Arr::first(array_filter($result, function ($item) {
-                return Arr::get($item, 'currency') == 'USD';
-            })), 'sell');
-
-            return $dollarSellPrice ?? 24500;
-        } catch (\Throwable $th) {
-            return 24500;
-        }
+        return 24500;
     }
 }
 
@@ -1893,53 +1877,7 @@ if (!function_exists('apps_telegram_send_message')) {
         $logger = 'daily',
         $configs = []
     ) {
-        #region Important Telegram notification
-        try {
-            if (blank($logger))
-                $logger = 'daily';
-
-            if (!in_array(app()->environment(), ['production', 'prod'], true) && !env('TELEGRAM_NOTIFY_ENABLE', false)) { // giới hạn gửi ở production, hoặc nếu bật force notify
-                Log::channel($logger)->info('[Telegram::Skipped]', [
-                    'env' => app()->environment(),
-                    'reason' => 'Not in production and TELEGRAM_NOTIFY_ENABLE is not true'
-                ]);
-                return;
-            }
-
-
-            $telegramDfOptions = [
-                'parse_mode' => 'HTML',
-                'disable_web_page_preview' => true,
-                'link_preview_options' => ['is_disabled' => true],
-                'chat_id' => env('TELEGRAM_CHAT_ID', config("telegram.bots.{$channel}.chat_id", '-1001541977083')),
-                'message_thread_id' => env('TELEGRAM_MESSAGE_THREAD_ID', config("telegram.bots.{$channel}.message_thread_id", '-20958'))
-            ];
-
-            if (!blank($configs)) {
-                $telegramDfOptions = [
-                    ...$telegramDfOptions,
-                    ...$configs // high priority & override
-                ];
-            }
-
-            Log::channel($logger)->info("configs", $configs);
-            Log::channel($logger)->info("telegramDfOptions", $telegramDfOptions);
-
-            $telegramDfOptions['text'] = \Illuminate\Support\Str::limit( // Can use facades app('url) but helper str() not available right now, possibly because not loaded
-                is_array($message) ?
-                implode("\n", $message) : $message,
-                4096
-            );
-
-            $botToken = config("telegram.bots.{$channel}.token", env('TELEGRAM_BOT_TOKEN'));
-            $telegram = new \Telegram\Bot\Api($botToken); // getenv TELEGRAM_BOT_TOKEN, it's working
-            return $telegram->sendMessage($telegramDfOptions);
-        } catch (Throwable $th) {
-            Log::channel($logger)->error(__FUNCTION__, (array) $th->getMessage());
-            // DO NOT THROW
-            return null;
-        }
-        #endregion
+        return null;
     }
 }
 

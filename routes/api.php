@@ -23,40 +23,7 @@ Route::group([
     'as' => 'kernel.api.v1.'
 ], function () {
     #region Laravel CMS only — force-refresh all system URLs post-deployment
-    Route::post('products/check-update', function (\Illuminate\Http\Request $request): JsonResponse {
-        $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
-        
-        \Illuminate\Support\Facades\Log::channel($logger)->info("Marketplace plugin check-update from {$request->input('site_url', 'Unknown')} ({$request->ip()})", [
-            'core_version' => $request->input('core_version'),
-            'product_id' => $request->input('product_id'),
-            'plugins' => $request->input('products'),
-            'settings' => $request->input('settings'),
-            'user_agent' => $request->userAgent()
-        ]);
-        
-        \Dev\Kernel\Http\Controllers\API\LicenseServerController::trackUsage($request, 'MARKETPLACE_CHECK', [
-            'plugins' => $request->input('products', []),
-            'core_version' => $request->input('core_version'),
-        ]);
 
-        return response()->json([
-            'error' => false,
-            'data' => null,
-            'message' => 'Congratulations! Your core system is running the latest official version. Your platform is fully optimized for maximum performance and protected with the latest security enhancements.',
-        ]);
-    })->name('license.check-update');
-
-    Route::get('products/check-update', function (\Illuminate\Http\Request $request): JsonResponse {
-        $logger = function_exists('apps_log_channel') ? apps_log_channel('license') : 'daily';
-        
-        \Illuminate\Support\Facades\Log::channel($logger)->info("Marketplace check-update (GET) from {$request->input('site_url', 'Unknown')} ({$request->ip()})");
-
-        return response()->json([
-            'error' => false,
-            'data' => null,
-            'message' => 'The system is already running the latest version. For further assistance, please contact us at contact@visualweber.com or call +84 943 999 819',
-        ]);
-    })->name('license.check-update.get');
 
     Route::get('license/verify', function (): JsonResponse {
         return response()->json([
@@ -138,10 +105,5 @@ Route::group([
     'namespace' => 'Dev\Kernel\Http\Controllers\API',
     'middleware' => [],
 ], function () {
-    if (config('core.base.general.is_license_server')) {
-        Route::post('activate_license', 'LicenseServerController@activate');
-        Route::post('verify_license', 'LicenseServerController@verify');
-        Route::post('check_update', 'LicenseServerController@checkUpdate');
-        Route::post('check_connection_ext', 'LicenseServerController@checkConnectionExt');
-    }
+
 });

@@ -223,11 +223,7 @@ class TestCommand extends Command
             // app('log')->channel($this->logger)->error('asasdasdads');
             dd("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
-            apps_telegram_send_message([
-                "⚠️⚠️⚠️ Application: " . env("APP_NAME"),
-                __CLASS__ . " " . __FUNCTION__ . " is running",
-                app('url')->full(),
-            ], 'pull', $this->logger ?? 'daily', ['message_thread_id' => '2']); // send important message to telegram
+
 
             dd("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
