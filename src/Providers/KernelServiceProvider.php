@@ -13,6 +13,9 @@ namespace Dev\Kernel\Providers;
 
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Http\Request;
 
 use Dev\Base\Supports\Helper;
 use Dev\Base\Facades\EmailHandler;
@@ -94,6 +97,9 @@ class KernelServiceProvider extends ServiceProvider
             // Push vào cả API và Web groups để đảm bảo headers được set cho tất cả responses
             $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\SecurityHeaders::class);
             $router->pushMiddlewareToGroup('web', \Dev\Kernel\Http\Middleware\SecurityHeaders::class);
+
+            // 11. Rate Limiting - Throttle API requests
+            $router->pushMiddlewareToGroup('api', 'throttle:api');
         });
 
         // $this->app->singleton(ExceptionHandler::class, Handler::class); // không binding được vì thứ tự chạy trước, nên bị chạy sau đè lên Dev\Base\Providers\BaseServiceProvider
@@ -111,6 +117,8 @@ class KernelServiceProvider extends ServiceProvider
         $this->app->register(EventServiceProvider::class);
         $this->app->register(HookServiceProvider::class);
         $this->app->register(MacroServiceProvider::class, true);
+
+        $this->configureRateLimiting();
 
         $this
             ->setNamespace('kernel/kernel')
@@ -161,5 +169,17 @@ class KernelServiceProvider extends ServiceProvider
         foreach ($middlewares as $key => $class) {
             $router->$registerMethod($key, $class);
         }
+    }
+
+    /**
+     * Configure the rate limiters for the application.
+     *
+     * @return void
+     */
+    protected function configureRateLimiting()
+    {
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+        });
     }
 }
