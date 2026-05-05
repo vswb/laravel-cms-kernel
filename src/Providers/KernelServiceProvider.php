@@ -91,8 +91,6 @@ class KernelServiceProvider extends ServiceProvider
             // // Note: Nếu API dùng token-based auth, có thể exclude trong VerifyCsrfToken::$except
             // $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\VerifyCsrfToken::class);
 
-
-
             // 10. SecurityHeaders - Response headers (cuối cùng)
             // Push vào cả API và Web groups để đảm bảo headers được set cho tất cả responses
             $router->pushMiddlewareToGroup('api', \Dev\Kernel\Http\Middleware\SecurityHeaders::class);
@@ -179,7 +177,7 @@ class KernelServiceProvider extends ServiceProvider
     protected function configureRateLimiting()
     {
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(200)->by($request->user()?->id ?: $request->ip());
         });
     }
 }
