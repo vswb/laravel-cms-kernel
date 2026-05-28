@@ -108,14 +108,41 @@
  *      [--limit=<n>]                Chỉ xử lý N item đầu tiên (test)
  *      [--retry-failed=<json>]      Re-run chỉ các file lỗi từ JSON report của lần chạy trước
  *
- *  ── DELTA SYNC (tránh tải trùng + tránh miss file mới)
- *     Trình tự kiểm tra trước khi quyết định tải lại:
- *       1) --force         → luôn tải lại.
- *       2) Local chưa có   → tải mới.
- *       3) Size mismatch   → tải lại (catch truncation/corruption mà không phải tính MD5).
- *       4) Có MD5 (file thường): MD5 trùng → SKIP; khác → tải lại.
- *       5) Không có MD5 (Google Native): local mtime >= remote mtime → SKIP; cũ hơn → tải lại.
- *     Local mtime được set = remote mtime sau mỗi lần tải thành công (touch).
+ *  ── KHI FILE LOCAL ĐÃ TỒN TẠI (skip vs re-download)
+ *
+ *     1) Collision check (trong cùng 1 lần sync):
+ *        Nếu 2 file Drive khác ID nhưng cùng tên cùng folder → file thứ 2 thêm hậu tố
+ *        ID 8 ký tự đầu (vd: "file.pdf" → "file_1JP7CIBW.pdf"). KHÔNG so với file đã có
+ *        sẵn từ run trước — chỉ track trong session hiện tại.
+ *
+ *     2) Delta check (quyết định skip hay tải lại):
+ *          --force                                       → tải lại (đè).
+ *          Regular file & size(local) ≠ size(remote)     → tải lại (đè) — bắt truncated.
+ *          Có MD5 (file thường):
+ *            md5(local) == remote                        → SKIP ✋
+ *            md5 khác                                    → tải lại (đè) — file đã đổi.
+ *          Không có MD5 (Google Native: Docs/Sheets/Slides):
+ *            mtime(local) >= mtime(remote)               → SKIP ✋
+ *            mtime(local) <  mtime(remote)               → tải lại (đè) — Drive mới hơn.
+ *        Sau khi tải thành công: touch(local) = mtime(remote) để lần sau so chính xác.
+ *
+ *     3) Cơ chế ghi đè (KHÔNG duplicate, KHÔNG backup):
+ *        • Google Native: File::put() → ghi đè toàn bộ.
+ *        • Regular file:  fopen('w')  → truncate về 0 byte rồi stream nội dung mới.
+ *        • Permission/owner của file local KHÔNG bị đổi (chỉ truncate nội dung).
+ *        • KHÔNG tạo file .bak / .old / .tmp — đè trực tiếp tại path cũ.
+ *
+ *     4) An toàn khi crash giữa chừng:
+ *        Ghi KHÔNG atomic. Crash giữa stream → file local còn lại partial. Lần sync
+ *        kế tiếp: size/MD5 mismatch sẽ được phát hiện → tải lại từ đầu. Self-heal.
+ *
+ *     5) Các tình huống đặc biệt:
+ *        • Local file người dùng đã sửa, Drive không đổi  → SKIP (giữ bản sửa).
+ *        • Local file người dùng đã sửa, Drive cũng đổi   → bản sửa local BỊ ĐÈ.
+ *        • File Drive bị đổi tên → tạo file mới ở path mới; bản cũ ở path cũ KHÔNG bị xoá.
+ *        • Local có file mà Drive không có  → giữ nguyên (command chỉ ADD/UPDATE,
+ *          không DELETE — xem cleanup "removed for safety" trong handle()).
+ *        • Đổi --path giữa các lần           → path mới sync từ đầu, path cũ nguyên vẹn.
  *
  *  ── BÁO CÁO FILE LỖI
  *     Sau mỗi lần chạy, nếu có file lỗi:
