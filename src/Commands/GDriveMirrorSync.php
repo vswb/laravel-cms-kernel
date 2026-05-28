@@ -9,13 +9,149 @@
  * Phần mềm độc quyền của Visual Weber, chỉ được sử dụng theo Hợp đồng cấp phép.
  */
 
-
-
 /**
- * GOOGLE DRIVE API SETUP GUIDES:
- * 1. How to get Client ID and Secret: https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/1-getting-your-dlient-id-and-secret.md
- * 2. How to get Refresh Token: https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/2-getting-your-refresh-token.md
- * 3. How to get Root Folder ID: https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/3-getting-your-root-folder-id.md
+ * ============================================================
+ *  GDriveMirrorSync — Hướng dẫn sử dụng
+ * ============================================================
+ *
+ * CHỨC NĂNG
+ * ---------
+ *  Đồng bộ một chiều: Google Drive → Local.
+ *  - Delta sync: chỉ tải file mới/thay đổi (so sánh MD5 trước, fallback timestamp).
+ *  - Tự động convert Google Docs/Sheets/Slides → .docx / .xlsx / .pptx.
+ *  - Stream download (không load toàn bộ file vào RAM).
+ *  - Retry tự động với exponential backoff khi lỗi mạng.
+ *  - Xử lý trùng tên file (name collision) bằng cách thêm Drive ID.
+ *  - KHÔNG xoá file local — chỉ thêm/cập nhật.
+ *
+ * ============================================================
+ *  CẤU HÌNH BẮT BUỘC (env hoặc DB setting)
+ * ============================================================
+ *
+ *  GOOGLE_DRIVE_ENABLED=true
+ *  GOOGLE_DRIVE_CLIENT_ID=<OAuth2 Client ID>
+ *  GOOGLE_DRIVE_CLIENT_SECRET=<OAuth2 Client Secret>
+ *  GOOGLE_DRIVE_REFRESH_TOKEN=<Refresh Token>
+ *
+ *  Hướng dẫn lấy credentials:
+ *  - Client ID & Secret : https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/1-getting-your-dlient-id-and-secret.md
+ *  - Refresh Token      : https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/2-getting-your-refresh-token.md
+ *  - Root Folder ID     : https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/3-getting-your-root-folder-id.md
+ *
+ * ============================================================
+ *  CÁCH LẤY FOLDER ID / PATH
+ * ============================================================
+ *
+ *  Cách 1 — Folder ID (từ URL trình duyệt):
+ *    Mở folder trên drive.google.com → URL có dạng:
+ *    https://drive.google.com/drive/folders/0Bw6yYZTQJcm3aGoxTGJuY1p1ZU0
+ *                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ *    Phần sau "/folders/" chính là Folder ID.
+ *
+ *  Cách 2 — Đường dẫn tương đối (dùng khi biết tên folder):
+ *    Dùng cú pháp "Tên Folder Cha/Tên Folder Con"
+ *    Ví dụ: "Báo cáo 2025/Tháng 1"
+ *
+ * ============================================================
+ *  CÚ PHÁP LỆNH
+ * ============================================================
+ *
+ *  php artisan gdrive:mirror:sync {folder_id_hoặc_path...}
+ *      [--path=<local_dir>]   Thư mục đích local (mặc định: storage/app/google_drive_mirror)
+ *      [--retry=<n>]          Số lần retry khi lỗi mạng (mặc định: 3, tối đa nên dùng: 10)
+ *      [--force]              Tải lại tất cả file dù đã tồn tại (bỏ qua delta check)
+ *
+ * ============================================================
+ *  VÍ DỤ SỬ DỤNG
+ * ============================================================
+ *
+ *  --- Cơ bản ---
+ *
+ *  # Sync 1 folder theo ID, lưu vào đường dẫn mặc định
+ *  php artisan gdrive:mirror:sync 0Bw6yYZTQJcm3aGoxTGJuY1p1ZU0
+ *
+ *  # Sync 1 folder theo ID, lưu vào ổ cứng ngoài
+ *  php artisan gdrive:mirror:sync 0Bw6yYZTQJcm3aGoxTGJuY1p1ZU0 \
+ *      --path="/Volumes/WD-DATA1/GDrive-Mirror"
+ *
+ *  # Sync theo đường dẫn tên folder (không cần ID)
+ *  php artisan gdrive:mirror:sync "Báo cáo 2025" \
+ *      --path="/home/backup/gdrive"
+ *
+ *  # Sync folder con theo path lồng nhau
+ *  php artisan gdrive:mirror:sync "Projects/Client A/Assets" \
+ *      --path="/var/www/storage/assets"
+ *
+ *  --- Nhiều folder cùng lúc ---
+ *
+ *  # Sync 2 folder ID cùng lúc vào cùng 1 thư mục đích
+ *  php artisan gdrive:mirror:sync \
+ *      0Bw6yYZTQJcm3aGoxTGJuY1p1ZU0 \
+ *      1Cx7zATRKdm4bHpuYSKvZ2q2AW1 \
+ *      --path="/Volumes/WD-DATA1/OneDrive"
+ *
+ *  # Sync hỗn hợp: 1 folder ID + 1 folder path
+ *  php artisan gdrive:mirror:sync \
+ *      0Bw6yYZTQJcm3aGoxTGJuY1p1ZU0 \
+ *      "Marketing/Creatives" \
+ *      --path="/var/www/html/public/files"
+ *
+ *  --- Retry & Force ---
+ *
+ *  # Tăng retry khi đường truyền yếu (ví dụ: tải qua 4G)
+ *  php artisan gdrive:mirror:sync 0Bw6yYZTQJcm3aGoxTGJuY1p1ZU0 \
+ *      --retry=10 \
+ *      --path="/Volumes/WD-DATA1/OneDrive"
+ *
+ *  # Force tải lại toàn bộ (dùng khi nghi ngờ file local bị corrupt)
+ *  php artisan gdrive:mirror:sync 0Bw6yYZTQJcm3aGoxTGJuY1p1ZU0 \
+ *      --force \
+ *      --path="/Volumes/WD-DATA1/OneDrive"
+ *
+ *  # Force + retry cao (dùng khi cần rebuild toàn bộ mirror sau sự cố)
+ *  php artisan gdrive:mirror:sync 0Bw6yYZTQJcm3aGoxTGJuY1p1ZU0 \
+ *      --force --retry=10 \
+ *      --path="/Volumes/WD-DATA1/OneDrive"
+ *
+ *  --- Chạy tự động (Cron / Laravel Scheduler) ---
+ *
+ *  # Thêm vào app/Console/Kernel.php để chạy mỗi giờ:
+ *  $schedule->command('gdrive:mirror:sync 0Bw6yYZTQJcm3aGoxTGJuY1p1ZU0 --retry=5 --path=/Volumes/WD-DATA1/OneDrive')
+ *           ->hourly()
+ *           ->withoutOverlapping()
+ *           ->runInBackground();
+ *
+ *  # Hoặc thêm vào crontab hệ thống (chạy mỗi 30 phút):
+ *  *\/30 * * * * php /var/www/html/artisan gdrive:mirror:sync 0Bw6yYZTQJcm3aGoxTGJuY1p1ZU0 \
+ *      --path="/Volumes/WD-DATA1/OneDrive" --retry=5 >> /var/log/gdrive-sync.log 2>&1
+ *
+ * ============================================================
+ *  CONVERT TỰ ĐỘNG GOOGLE NATIVE → MICROSOFT OFFICE
+ * ============================================================
+ *
+ *  Google Docs       → .docx  (Word)
+ *  Google Sheets     → .xlsx  (Excel)
+ *  Google Slides     → .pptx  (PowerPoint)
+ *  Google Drawings   → .png
+ *  Google Apps Script → .json
+ *
+ *  File thông thường (PDF, JPG, MP4, ZIP…) được tải nguyên bản.
+ *
+ * ============================================================
+ *  OUTPUT VÀ LOG
+ * ============================================================
+ *
+ *  Sau mỗi lần chạy, lệnh in bảng tổng kết:
+ *    📂 Folders Created   — Số thư mục mới được tạo
+ *    ✅ Files Updated     — Số file được tải/cập nhật
+ *    ⏭  Files Skipped    — Số file không thay đổi (delta skip)
+ *    ⚠  Collisions       — Số file trùng tên (đã tự xử lý bằng cách thêm Drive ID)
+ *    ❌ Errors            — Số file thất bại kèm lý do
+ *
+ *  Log chi tiết ghi vào channel "daily" (storage/logs/laravel-YYYY-MM-DD.log).
+ *  Danh sách file lỗi được log riêng để tiện manual retry.
+ *
+ * ============================================================
  */
 
 namespace Dev\Kernel\Commands;
@@ -98,9 +234,9 @@ class GDriveMirrorSync extends Command
             $targetIdentifiers = (array) $this->argument('folders');
 
             $stats = ['processed' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => 0, 'folders' => 0, 'failed_files' => [], 'collisions' => 0];
-            $usedLocalPaths = []; // Track paths in this session to handle name collisions
 
             foreach ($targetIdentifiers as $identifier) {
+                $usedLocalPaths = []; // Reset per-folder to avoid cross-folder collision false-positives
                 $localPrefix = '';
                 $currentDiskName = "gdrive_tmp_" . substr(md5($identifier), 0, 8);
 
@@ -233,18 +369,18 @@ class GDriveMirrorSync extends Command
                         }
                         $usedLocalPaths[$targetLocalPath] = $fileId;
 
-                        // IMPROVEMENT 2: Delta Sync Check with MD5
+                        // Delta Sync: MD5 is authoritative; timestamp is fallback when MD5 unavailable
                         if (!$this->option('force') && File::exists($targetLocalPath)) {
-                            $skipByMd5 = false;
                             if ($remoteMd5) {
-                                $localMd5 = md5_file($targetLocalPath);
-                                if ($localMd5 === $remoteMd5) {
-                                    $skipByMd5 = true;
+                                // MD5 available: skip only if content is identical
+                                if (md5_file($targetLocalPath) === $remoteMd5) {
+                                    $stats['skipped']++;
+                                    $bar->advance();
+                                    continue;
                                 }
-                            }
-
-                            // Fallback to timestamp if MD5 is not available or doesn't match
-                            if ($skipByMd5 || File::lastModified($targetLocalPath) >= $remoteTimestamp) {
+                                // MD5 mismatch means file changed → must re-download, ignore timestamp
+                            } elseif (File::lastModified($targetLocalPath) >= $remoteTimestamp) {
+                                // No MD5: fall back to timestamp
                                 $stats['skipped']++;
                                 $bar->advance();
                                 continue;
@@ -265,13 +401,15 @@ class GDriveMirrorSync extends Command
                             } else {
                                 // Stream Download for regular files (Memory Efficient)
                                 $readStream = $googleDisk->readStream($relativePath);
-                                if ($readStream) {
-                                    $writeStream = fopen($targetLocalPath, 'w');
+                                if (!$readStream) {
+                                    throw new \Exception("Could not open read stream");
+                                }
+                                $writeStream = fopen($targetLocalPath, 'w');
+                                try {
                                     stream_copy_to_stream($readStream, $writeStream);
+                                } finally {
                                     fclose($writeStream);
                                     if (is_resource($readStream)) fclose($readStream);
-                                } else {
-                                    throw new \Exception("Could not open read stream");
                                 }
                             }
                             return true;
@@ -283,7 +421,6 @@ class GDriveMirrorSync extends Command
                         } else {
                             $stats['errors']++;
                             $reason = $this->lastError ?? 'Unknown Error';
-                            $fileId = is_array($meta) ? ($meta['id'] ?? 'N/A') : (method_exists($meta, 'getId') ? $meta->getId() : 'N/A');
                             $stats['failed_files'][] = [
                                 'name' => $relativePath,
                                 'id' => $fileId,
@@ -339,8 +476,9 @@ class GDriveMirrorSync extends Command
                     return false;
                 }
                 
-                $this->comment("      ⏳ Attempt {$attempts} failed, retrying...");
-                sleep(1); 
+                $delay = min(2 ** $attempts, 30); // Exponential backoff: 2s, 4s, 8s… max 30s
+                $this->comment("      ⏳ Attempt {$attempts} failed, retrying in {$delay}s...");
+                sleep($delay);
             }
         }
         return false;
@@ -417,8 +555,9 @@ class GDriveMirrorSync extends Command
         $service = $googleDisk->getAdapter()->getService();
         $pathSegments = [];
         $currentId = $id;
+        $maxDepth = 25; // Guard against unexpected circular references
 
-        while ($currentId) {
+        while ($currentId && $maxDepth-- > 0) {
             $file = $service->files->get($currentId, ['fields' => 'id, name, parents']);
             if (!$file) break;
 
