@@ -25,18 +25,27 @@
  *  - KHÔNG xoá file local — chỉ thêm/cập nhật.
  *
  * ============================================================
- *  CẤU HÌNH BẮT BUỘC (env hoặc DB setting)
+ *  CẤU HÌNH XÁC THỰC — chọn 1 trong 2 cách
  * ============================================================
  *
  *  GOOGLE_DRIVE_ENABLED=true
- *  GOOGLE_DRIVE_CLIENT_ID=<OAuth2 Client ID>
- *  GOOGLE_DRIVE_CLIENT_SECRET=<OAuth2 Client Secret>
- *  GOOGLE_DRIVE_REFRESH_TOKEN=<Refresh Token>
  *
- *  Hướng dẫn lấy credentials:
- *  - Client ID & Secret : https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/1-getting-your-dlient-id-and-secret.md
- *  - Refresh Token      : https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/2-getting-your-refresh-token.md
- *  - Root Folder ID     : https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/3-getting-your-root-folder-id.md
+ *  Cách A — Service Account (KHUYẾN NGHỊ, không cần refresh token):
+ *    - Đặt file JSON tại: config/google-service-account-credentials.json
+ *      (hoặc set env GOOGLE_SERVICE_ACCOUNT_JSON_LOCATION=/absolute/path.json)
+ *    - QUAN TRỌNG: share folder Drive cần sync với email của service account
+ *      (vd: adstool@ads-tools-207818.iam.gserviceaccount.com) ở mức Viewer trở lên.
+ *      Service account KHÔNG tự thấy được folder cá nhân nếu chưa được share.
+ *
+ *  Cách B — OAuth2 (cũ, fallback khi không có service account file):
+ *    GOOGLE_DRIVE_CLIENT_ID=<OAuth2 Client ID>
+ *    GOOGLE_DRIVE_CLIENT_SECRET=<OAuth2 Client Secret>
+ *    GOOGLE_DRIVE_REFRESH_TOKEN=<Refresh Token>
+ *
+ *    Hướng dẫn lấy credentials (chỉ cho Cách B):
+ *    - Client ID & Secret : https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/1-getting-your-dlient-id-and-secret.md
+ *    - Refresh Token      : https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/2-getting-your-refresh-token.md
+ *    - Root Folder ID     : https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/3-getting-your-root-folder-id.md
  *
  * ============================================================
  *  CÁCH LẤY FOLDER ID / PATH
@@ -184,6 +193,7 @@ class GDriveMirrorSync extends Command
 
     protected $log_channel = 'daily';
     protected $lastError = null;
+    protected ?string $serviceAccountFile = null;
 
     /**
      * Google Native MimeTypes to Microsoft Office (OpenXML) Formats
@@ -243,9 +253,30 @@ class GDriveMirrorSync extends Command
                 // Check if $identifier is an ID or a Path
                 $isId = (strpos($identifier, '/') === false && strlen($identifier) > 20);
 
-                if ($isId) {
+                if ($this->serviceAccountFile && $isId) {
+                    // Service account: configure disk with folder ID as root; bypass path resolution.
+                    // Why: service account has no "My Drive" of the user, so getPathFromId returns a
+                    // folder name that listContents() can't resolve. Using the ID as the adapter root
+                    // works regardless of who shared the folder.
+                    $this->initGoogleDisk($identifier, $currentDiskName);
+                    /** @var mixed $googleDisk */
+                    $googleDisk = Storage::disk($currentDiskName);
+
+                    try {
+                        $folderInfo = $googleDisk->getAdapter()->getService()->files->get($identifier, ['fields' => 'name']);
+                        $localPrefix = $folderInfo->getName();
+                        $this->info("\n🚀 SYNCING (Service Account) — Folder: {$localPrefix} ({$identifier})");
+                    } catch (\Throwable $e) {
+                        $localPrefix = $identifier;
+                        $this->warn("\n🚀 SYNCING (Service Account) — Folder ID: {$identifier} (name lookup failed: {$e->getMessage()})");
+                    }
+                    $exploringPath = '';
+                } elseif ($this->serviceAccountFile && !$isId) {
+                    $this->warn("\n⚠️ Skipping '{$identifier}': service account mode requires a Folder ID, not a path.");
+                    continue;
+                } elseif ($isId) {
                     $this->info("\n🚀 RESOLVING PATH FOR GOOGLE DRIVE ID: {$identifier}");
-                    
+
                     /** @var mixed $googleDisk */
                     $googleDisk = Storage::disk('google_drive_mirror');
                     try {
@@ -254,7 +285,7 @@ class GDriveMirrorSync extends Command
                             $this->info("Resolved Path: {$resolvedPath}");
                             $exploringPath = $resolvedPath;
                             // When using resolved path, we don't need a localPrefix because the path itself contains all segments
-                            $localPrefix = ''; 
+                            $localPrefix = '';
                         } else {
                             $this->warn("Could not resolve path for ID. Falling back to ID direct scan.");
                             $exploringPath = $identifier;
@@ -485,16 +516,122 @@ class GDriveMirrorSync extends Command
     }
 
     /**
+     * Recursively list a folder via Drive API. Returns items in masbug-compatible shape
+     * (arrays with type/path/id/mimeType/md5Checksum/timestamp). Used in service-account mode
+     * because masbug's listContents on a folder-id root returns nothing.
+     */
+    protected function listFolderRecursiveViaApi($service, string $folderId, string $relativePath = ''): array
+    {
+        $items = [];
+        $pageToken = null;
+        $query = sprintf("'%s' in parents and trashed = false", str_replace("'", "\\'", $folderId));
+
+        do {
+            $response = $service->files->listFiles([
+                'q' => $query,
+                'pageSize' => 1000,
+                'fields' => 'nextPageToken, files(id, name, mimeType, modifiedTime, md5Checksum, size)',
+                'pageToken' => $pageToken,
+                'supportsAllDrives' => true,
+                'includeItemsFromAllDrives' => true,
+            ]);
+
+            foreach ($response->getFiles() as $file) {
+                $isFolder = $file->getMimeType() === 'application/vnd.google-apps.folder';
+                $childPath = $relativePath !== '' ? $relativePath . '/' . $file->getName() : $file->getName();
+
+                $items[] = [
+                    'type' => $isFolder ? 'dir' : 'file',
+                    'path' => $childPath,
+                    'id' => $file->getId(),
+                    'mimeType' => $file->getMimeType(),
+                    'md5Checksum' => $file->getMd5Checksum(),
+                    'timestamp' => $file->getModifiedTime() ? strtotime($file->getModifiedTime()) : 0,
+                    'size' => (int) ($file->getSize() ?? 0),
+                ];
+
+                if ($isFolder) {
+                    foreach ($this->listFolderRecursiveViaApi($service, $file->getId(), $childPath) as $child) {
+                        $items[] = $child;
+                    }
+                }
+            }
+
+            $pageToken = $response->getNextPageToken();
+        } while ($pageToken);
+
+        return $items;
+    }
+
+    /**
+     * Stream-download a regular (non Google-native) file via Drive API to disk.
+     * Avoids loading the whole file into memory.
+     */
+    protected function streamDownloadViaApi($service, string $fileId, string $targetLocalPath): void
+    {
+        $httpClient = $service->getClient()->authorize();
+        $url = sprintf('https://www.googleapis.com/drive/v3/files/%s?alt=media&supportsAllDrives=true', urlencode($fileId));
+
+        $response = $httpClient->request('GET', $url, ['stream' => true]);
+        $body = $response->getBody();
+
+        $writeStream = fopen($targetLocalPath, 'w');
+        try {
+            while (! $body->eof()) {
+                fwrite($writeStream, $body->read(8192));
+            }
+        } finally {
+            fclose($writeStream);
+        }
+    }
+
+    /**
+     * Resolve service account JSON file path. Returns null if not present/readable.
+     * Priority: env GOOGLE_SERVICE_ACCOUNT_JSON_LOCATION → config('google.service.file') → config_path default.
+     */
+    protected function resolveServiceAccountFile(): ?string
+    {
+        $candidates = array_filter([
+            env('GOOGLE_SERVICE_ACCOUNT_JSON_LOCATION'),
+            function_exists('config') ? config('google.service.file') : null,
+            function_exists('config_path') ? config_path('google-service-account-credentials.json') : null,
+        ]);
+
+        foreach ($candidates as $path) {
+            $resolved = str_starts_with($path, DIRECTORY_SEPARATOR) ? $path : (function_exists('config_path') ? config_path($path) : $path);
+            if (is_file($resolved) && is_readable($resolved)) {
+                return $resolved;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Initializing the Google Drive Disk Config
      */
     protected function initGoogleDisk($specificFolderId = null, $diskName = 'google_drive_mirror')
     {
-        $config = [
-            'driver' => 'google',
-            'clientId' => $this->getGdriveSetting('social_login_google_app_id', 'GOOGLE_DRIVE_CLIENT_ID'),
-            'clientSecret' => $this->getGdriveSetting('social_login_google_app_secret', 'GOOGLE_DRIVE_CLIENT_SECRET'),
-            'refreshToken' => $this->getGdriveSetting('social_login_google_drive_refresh_token', 'GOOGLE_DRIVE_REFRESH_TOKEN'),
-        ];
+        $serviceAccountFile = $this->resolveServiceAccountFile();
+        $this->serviceAccountFile = $serviceAccountFile;
+
+        if ($serviceAccountFile) {
+            $config = [
+                'driver' => 'google',
+                'serviceAccountFile' => $serviceAccountFile,
+            ];
+        } else {
+            $config = [
+                'driver' => 'google',
+                'clientId' => $this->getGdriveSetting('social_login_google_app_id', 'GOOGLE_DRIVE_CLIENT_ID'),
+                'clientSecret' => $this->getGdriveSetting('social_login_google_app_secret', 'GOOGLE_DRIVE_CLIENT_SECRET'),
+                'refreshToken' => $this->getGdriveSetting('social_login_google_drive_refresh_token', 'GOOGLE_DRIVE_REFRESH_TOKEN'),
+            ];
+        }
+
+        if ($specificFolderId) {
+            $config['folder'] = $specificFolderId;
+        }
+
         config(["filesystems.disks.{$diskName}" => $config]);
         
         // Force Laravel to forget the disk instance so it picks up the new config
